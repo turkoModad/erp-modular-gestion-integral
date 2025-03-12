@@ -1,0 +1,15 @@
+.env
+env/
+ecommerce/
+ecommerce
+__pycache__/
+*.pyc
+*.pyo
+.DS_Store
+.idea/
+.vscode/
+master
+master/
+__init__.py
+.env.test
+script.py.mako
