@@ -13,3 +13,4 @@ master/
 __init__.py
 .env.test
 script.py.mako
+test.db

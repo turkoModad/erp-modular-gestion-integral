@@ -2,7 +2,6 @@ import uvicorn
 from fastapi import FastAPI, Depends
 from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
-from passlib.context import CryptContext
 import logging
 import os
 import asyncio

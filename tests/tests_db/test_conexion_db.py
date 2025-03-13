@@ -1,10 +1,22 @@
+from sqlalchemy import inspect
+from app.db.database import engine
 from sqlalchemy import text
-import pytest
 
-def test_conexion_db(db_session):
-    """Verifica que la conexión a la base de datos es exitosa ejecutando una consulta simple."""
+
+def test_conexion_bd():
+    """Verifica la conexión a la base de datos"""
     try:
-        result = db_session.execute(text("SELECT 1"))
-        assert result.scalar() == 1
+        with engine.connect() as conn:
+            result = conn.execute(text("SELECT 1"))
+            assert result.scalar() == 1
     except Exception as e:
-        pytest.fail(f"Error al conectar con la base de datos: {e}")
+        assert False, f"❌ Fallo de conexión: {e}"
+
+def test_estructura_tablas():
+    """Valida la existencia de todas las tablas requeridas"""
+    inspector = inspect(engine)
+    tablas_esperadas = {"usuarios"}
+    tablas_existentes = set(inspector.get_table_names())
+    
+    faltantes = tablas_esperadas - tablas_existentes
+    assert not faltantes, f"❌ Tablas faltantes: {faltantes}"
