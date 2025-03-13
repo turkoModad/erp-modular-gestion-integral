@@ -32,10 +32,8 @@ class TestSettings(BaseSettingsConfig):
 @lru_cache
 def get_settings():
     if "pytest" in sys.modules:
-        print("en testing")
         return TestSettings() 
     else:
-        print("en produccion")
         return ProdSettings() 
-
+    
 settings = get_settings()
