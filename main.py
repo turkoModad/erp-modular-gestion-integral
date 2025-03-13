@@ -7,15 +7,14 @@ import logging
 import os
 import asyncio
 from contextlib import asynccontextmanager
-from app.modelos import Usuario
-from app.config import settings
-from app.database import get_db, Base, engine, check_tables_exist
+from app.db.modelos import Usuario
+from app.db.config import settings
+from app.db.database import get_db, Base, engine, check_tables_exist
 
-
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):

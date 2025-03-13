@@ -1,8 +1,8 @@
 import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-from app.modelos import Base
-from app.config import settings
+from app.db.modelos import Base
+from app.db.config import settings
 
 
 @pytest.fixture(scope='module')

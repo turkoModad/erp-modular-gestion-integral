@@ -1,4 +1,4 @@
-from app.modelos import Usuario
+from app.db.modelos import Usuario
 
 def test_insersion_usuario(db_session):
     """Prueba la inserción de un usuario en la base de datos."""

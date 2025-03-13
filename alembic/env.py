@@ -8,8 +8,8 @@ import sys
 sys.path.append(os.getcwd())
 
 
-from app.config import settings  
-from app.modelos import Base
+from app.db.config import settings  
+from app.db.modelos import Base
 
 
 config = context.config
