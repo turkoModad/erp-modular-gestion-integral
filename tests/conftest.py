@@ -3,7 +3,12 @@ from sqlalchemy import create_engine, inspect
 from sqlalchemy.orm import sessionmaker
 from app.db.database import Base
 from app.db.config import settings
+from app.db.modelos import Usuario
+from app.security.hashing import hash_password
+from fastapi.testclient import TestClient
+from main import app
 
+client = TestClient(app)
 
 engine = create_engine(
     settings.DATABASE_URL,
@@ -32,7 +37,7 @@ def setup_database():
 def db_session():
     """Sesión de base de datos con transacción aislada"""
     connection = engine.connect()
-    transaction = connection.begin()
+    transaction = connection.begin_nested()
     Session = sessionmaker(bind=connection)
     session = Session()
     
@@ -41,3 +46,33 @@ def db_session():
     session.close()
     transaction.rollback()
     connection.close()
+
+
+def test_login_exitoso(db_session):
+    # Crear usuario con contraseña HASHED
+    password = "validpassword123"
+    hashed_password = hash_password(password)
+    user = Usuario(
+        nombre="Login User",
+        email="login@test.com",
+        password=hashed_password
+    )
+    db_session.add(user)
+    db_session.commit()
+
+    # Credenciales válidas usando 'username' como email
+    login_data = {
+        "username": "login@test.com",
+        "password": password
+    }
+    
+    response = client.post("/auth/login", data=login_data)
+    assert response.status_code == 200
+
+
+@pytest.fixture(autouse=True)
+def limpiar_db(db_session):
+    """Limpiar la base de datos antes de cada test"""
+    for table in reversed(Base.metadata.sorted_tables):
+        db_session.execute(table.delete())
+    db_session.commit()

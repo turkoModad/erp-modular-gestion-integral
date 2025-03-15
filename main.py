@@ -4,7 +4,6 @@ import logging
 import os
 import asyncio
 from contextlib import asynccontextmanager
-from app.db.config import settings
 from app.db.database import Base, engine, check_tables_exist
 from app.security import auth
 
@@ -23,7 +22,6 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(lifespan=lifespan)
-
 
 app.include_router(auth.router, prefix="/auth", tags=["auth"])
 

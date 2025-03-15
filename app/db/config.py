@@ -8,6 +8,11 @@ class BaseSettingsConfig(BaseSettings):
     model_config = ConfigDict(env_file=".env", extra="ignore")
 
 
+class TestSettingsConfig(BaseSettings):
+    model_config = ConfigDict(env_file=".env.test", extra="ignore")
+    DATABASE_URL: str
+
+
 class ProdSettings(BaseSettingsConfig):
     POSTGRES_DB: str
     POSTGRES_USER: str
@@ -15,25 +20,17 @@ class ProdSettings(BaseSettingsConfig):
     POSTGRES_SERVER: str
     POSTGRES_PORT: int
     SECRET_KEY: str
-    
+
     @property
     def DATABASE_URL(self):        
         return f"postgresql://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}@{self.POSTGRES_SERVER}:{self.POSTGRES_PORT}/{self.POSTGRES_DB}"
-    
-
-class BaseSettingsConfig(BaseSettings):
-    model_config = ConfigDict(env_file=".env.test", extra="ignore")
-    
-
-class TestSettings(BaseSettingsConfig):
-    DATABASE_URL: str
 
 
 @lru_cache
 def get_settings():
     if "pytest" in sys.modules:
-        return TestSettings() 
-    else:
-        return ProdSettings() 
-    
+        return TestSettingsConfig()
+    return ProdSettings()
+
+
 settings = get_settings()

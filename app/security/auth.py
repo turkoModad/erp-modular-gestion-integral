@@ -1,16 +1,16 @@
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Depends, status
 from sqlalchemy.orm import Session
 from app.db.database import get_db
-from app.security.schemas import UsuarioCreate, UsuarioLogin
+from app.security.schemas import UsuarioCreate,OAuth2EmailPasswordRequestForm, UsuarioOut
 from app.db.modelos import Usuario
 from app.security.hashing import verify_password, hash_password
-from app.security.jwt import create_access_token
+from app.security.jwt import create_access_token, get_current_user
 
 
 router = APIRouter()
 
 
-@router.post("/registro/")
+@router.post("/registro/", response_model=UsuarioOut)
 def register(user: UsuarioCreate, db: Session = Depends(get_db)):
     db_user = db.query(Usuario).filter(Usuario.email == user.email).first()
     if db_user:
@@ -29,16 +29,22 @@ def register(user: UsuarioCreate, db: Session = Depends(get_db)):
     return new_user
 
 
-@router.post("/login/")
-def login(user: UsuarioLogin, db: Session = Depends(get_db)):
-    db_user = db.query(Usuario).filter(Usuario.email == user.email).first()
+
+@router.post("/login")
+async def login(form_data: OAuth2EmailPasswordRequestForm = Depends(), db: Session = Depends(get_db)):
+    user = db.query(Usuario).filter(Usuario.email == form_data.email).first()
+    if not user or not verify_password(form_data.password, user.password):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Credenciales incorrectas",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
     
-    if not db_user:
-        raise HTTPException(status_code=400, detail="Usuario no encontrado")
-    
-    if not verify_password(user.password, db_user.password):
-        raise HTTPException(status_code=400, detail="Contraseña incorrecta")
-    
-    access_token = create_access_token(data={"sub": db_user.email})
-    
+    access_token = create_access_token(data={"sub": user.email})
     return {"access_token": access_token, "token_type": "bearer"}
+
+
+
+@router.get("/users/me", response_model=UsuarioOut)
+async def read_users_me(current_user: Usuario = Depends(get_current_user)):
+    return current_user
