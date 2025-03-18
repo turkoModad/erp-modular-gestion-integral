@@ -9,7 +9,7 @@ sys.path.append(os.getcwd())
 
 
 from app.db.config import settings  
-from app.db.modelos import Base
+from app.db.models import Base
 
 
 config = context.config

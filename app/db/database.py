@@ -9,13 +9,13 @@ Base = declarative_base()
 logger = logging.getLogger(__name__)
 
 engine = create_engine(settings.DATABASE_URL)
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+SessionLocal = sessionmaker(autocommit = False, autoflush = False, bind = engine)
 
 
 def check_tables_exist():
     """Verificación sincrónica de existencia de tablas"""
     inspector = inspect(engine)
-    return len(inspector.get_table_names()) > 0
+    return len(inspector.get_table_names()) > 1
 
 
 def get_db():

@@ -3,7 +3,7 @@ from sqlalchemy import create_engine, inspect
 from sqlalchemy.orm import sessionmaker
 from app.db.database import Base
 from app.db.config import settings
-from app.db.modelos import Usuario
+from app.db.models import Usuario
 from app.security.hashing import hash_password
 from fastapi.testclient import TestClient
 from main import app
@@ -19,19 +19,20 @@ engine = create_engine(
 @pytest.fixture(scope="session", autouse=True)
 def setup_database():
     """Configuración completa de la base de datos de pruebas"""
-    print("\n[1/3] 🔨 Creando estructura de base de datos...")
+    print("\n[1/3] Creando estructura de base de datos...")
     Base.metadata.create_all(engine)
     
     # Verificación de tablas creadas
     inspector = inspect(engine)
     tables = inspector.get_table_names()
-    print(f"[2/3] 🔍 Tablas detectadas: {tables}")
+    print(f"[2/3] Tablas detectadas: {tables}")
     
-    yield  # Ejecución de pruebas
+    yield 
     
     print("\n[3/3] Limpiando base de datos...")
     Base.metadata.drop_all(engine)
     engine.dispose()
+
 
 @pytest.fixture(scope="function")
 def db_session():
@@ -49,24 +50,24 @@ def db_session():
 
 
 def test_login_exitoso(db_session):
-    # Crear usuario con contraseña HASHED
+    """Crear usuario con contraseña HASHED"""
     password = "validpassword123"
     hashed_password = hash_password(password)
     user = Usuario(
-        nombre="Login User",
-        email="login@test.com",
-        password=hashed_password
+        first_name = "Login User",
+        last_name = "Test",
+        email = "login@test.com",
+        password = hashed_password,
+        date_of_birth = "2005-03-17 17:26:17.680282"
     )
     db_session.add(user)
     db_session.commit()
-
-    # Credenciales válidas usando 'username' como email
-    login_data = {
-        "username": "login@test.com",
-        "password": password
-    }
     
-    response = client.post("/auth/login", data=login_data)
+    login_data = {
+        "email": "login@test.com",
+        "password": password
+    }    
+    response = client.post("/auth/login", data = login_data)
     assert response.status_code == 200
 
 

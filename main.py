@@ -6,6 +6,9 @@ import asyncio
 from contextlib import asynccontextmanager
 from app.db.database import Base, engine, check_tables_exist
 from app.security import auth
+from app.users import routes as users
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse, RedirectResponse
 
 
 logging.basicConfig(level=logging.INFO)
@@ -24,6 +27,9 @@ async def lifespan(app: FastAPI):
 app = FastAPI(lifespan=lifespan)
 
 app.include_router(auth.router, prefix="/auth", tags=["auth"])
+app.include_router(users.router, prefix="/users", tags=["users"])
+
+app.mount("/static", StaticFiles(directory="frontend/static"), name="static")
 
 
 async def initialize_database():
@@ -38,6 +44,16 @@ async def initialize_database():
     except Exception as e:
         logger.error(f"Error crítico durante la inicialización: {str(e)}")
         raise RuntimeError("Error en inicialización de base de datos")
+    
+
+@app.get("/")
+async def root():
+    return RedirectResponse(url="/docs")
+
+
+@app.get("/favicon.ico")
+async def get_favicon():
+    return FileResponse("frontend/static/favicon.ico")
     
 
 if __name__ == "__main__":

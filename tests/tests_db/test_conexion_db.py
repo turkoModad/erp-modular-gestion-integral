@@ -10,7 +10,7 @@ def test_conexion_bd():
             result = conn.execute(text("SELECT 1"))
             assert result.scalar() == 1
     except Exception as e:
-        assert False, f"❌ Fallo de conexión: {e}"
+        assert False, f"Fallo de conexión: {e}"
 
 def test_estructura_tablas():
     """Valida la existencia de todas las tablas requeridas"""
@@ -19,4 +19,4 @@ def test_estructura_tablas():
     tablas_existentes = set(inspector.get_table_names())
     
     faltantes = tablas_esperadas - tablas_existentes
-    assert not faltantes, f"❌ Tablas faltantes: {faltantes}"
+    assert not faltantes, f"Tablas faltantes: {faltantes}"

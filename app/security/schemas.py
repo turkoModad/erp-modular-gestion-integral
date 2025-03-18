@@ -1,6 +1,8 @@
 from pydantic import BaseModel, ConfigDict, EmailStr, field_validator
 from fastapi import Form
+from typing import Optional
 from app.security.utils import validar_contraseña_fuerte
+from datetime import datetime
 
 
 class Usuario(BaseModel):
@@ -11,10 +13,22 @@ class Usuario(BaseModel):
 
 
 class UsuarioCreate(BaseModel):
-    nombre: str
     email: EmailStr
     password: str
-   
+    first_name: str
+    last_name: str
+    phone_number: Optional[str] = None
+    date_of_birth: datetime
+    shipping_address: Optional[str] = None
+    shipping_city: Optional[str] = None
+    shipping_country: Optional[str] = None
+    shipping_zip_code: Optional[str] = None
+    account_status: Optional[str] = "pendiente"
+    role: Optional[str] = "cliente"
+    two_factor_enabled: Optional[bool] = False
+    is_email_verified: Optional[bool] = False
+
+
     @field_validator('password')
     def check_password_length(cls, password):
         if len(password) < 8 or len(password) > 25:
@@ -24,23 +38,36 @@ class UsuarioCreate(BaseModel):
             raise ValueError("La contraseña no es suficientemente fuerte. Debe tener al menos 8 caracteres, incluir una mayúscula, un número y un carácter especial.")
         return password
 
-    model_config = ConfigDict(from_attributes=True)  
+    model_config = ConfigDict(from_attributes=True) 
 
 
 class UsuarioLogin(BaseModel):
     email: EmailStr
     password: str
 
-    model_config = ConfigDict(from_attributes=True) 
+    model_config = ConfigDict(from_attributes=True)
 
 
 class UsuarioOut(BaseModel):
     id: int
-    nombre: str
     email: EmailStr
-    es_admin: bool
+    first_name: str
+    last_name: str
+    phone_number: Optional[str] = None
+    date_of_birth: datetime
+    shipping_address: Optional[str] = None
+    shipping_city: Optional[str] = None
+    shipping_country: Optional[str] = None
+    shipping_zip_code: Optional[str] = None
+    account_status: str
+    role: str
+    two_factor_enabled: bool
+    is_email_verified: bool
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
+    last_login: Optional[datetime] = None    
 
-    model_config = ConfigDict(from_attributes=True)  
+    model_config = ConfigDict(from_attributes=True)
 
 
 class OAuth2EmailPasswordRequestForm:

@@ -5,11 +5,11 @@ from pydantic import ConfigDict
 
 
 class BaseSettingsConfig(BaseSettings):
-    model_config = ConfigDict(env_file=".env", extra="ignore")
+    model_config = ConfigDict(env_file = ".env", extra="ignore")
 
 
 class TestSettingsConfig(BaseSettings):
-    model_config = ConfigDict(env_file=".env.test", extra="ignore")
+    model_config = ConfigDict(env_file = ".env.test", extra="ignore")
     DATABASE_URL: str
 
 
