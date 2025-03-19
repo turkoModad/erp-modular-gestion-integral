@@ -10,7 +10,7 @@ from app.services.hash_activacion_email import crear_token
 import bcrypt
 import datetime
 import logging
-from app.db.models import AccountStatus
+from app.enums import AccountStatus
 from app.security.dependencies import OAuth2EmailRequestForm
 
 
@@ -111,7 +111,7 @@ def activate_email(email: str, token: str, db: Session = Depends(get_db)):
         usuario.is_email_verified = True
         usuario.email_verification_token = None
         usuario.email_verification_expiration = None 
-        usuario.account_status = "active"  
+        usuario.account_status = AccountStatus.active  
         db.commit()
         db.refresh(usuario)
         db.close()

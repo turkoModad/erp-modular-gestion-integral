@@ -1,14 +1,7 @@
 from sqlalchemy import Column, Integer, String, DateTime, Boolean, Enum
 from app.db.database import Base
 from sqlalchemy.sql import func
-import enum
-
-
-class AccountStatus(enum.Enum):
-    active = "active"
-    pending = "pending"
-    banned = "banned"
-    deleted = "deleted"
+from app.enums import AccountStatus, Role
 
 
 class Usuario(Base):
@@ -25,7 +18,7 @@ class Usuario(Base):
     shipping_country = Column(String(100), nullable = True)
     shipping_zip_code = Column(String(10), nullable = True)
     account_status = Column(Enum(AccountStatus), default = AccountStatus.pending)
-    role = Column(String(20), default = "cliente")  
+    role = Column(Enum(Role), default=Role.CLIENT) 
     created_at = Column(DateTime, default = func.now())
     updated_at = Column(DateTime, server_default = func.now(), onupdate = func.now(), nullable = True)
     last_login = Column(DateTime, nullable = True)

@@ -7,6 +7,7 @@ from contextlib import asynccontextmanager
 from app.db.database import Base, engine, check_tables_exist
 from app.security import auth
 from app.users import routes as users
+from app.admin import routes as admin
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, RedirectResponse
 
@@ -26,8 +27,9 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(lifespan=lifespan)
 
-app.include_router(auth.router, prefix="/auth", tags=["auth"])
-app.include_router(users.router, prefix="/users", tags=["users"])
+app.include_router(auth.router, prefix="/auth", tags=["Auth"])
+app.include_router(users.router, prefix="/users", tags=["Users"])
+app.include_router(admin.router, prefix="/admin", tags=["Admin"])
 
 app.mount("/static", StaticFiles(directory="frontend/static"), name="static")
 

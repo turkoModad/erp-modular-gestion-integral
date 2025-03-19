@@ -1,6 +1,9 @@
 from fastapi.security import OAuth2PasswordRequestForm
-from fastapi import Form
+from fastapi import Form, Depends, HTTPException, status
 from typing import Optional
+from app.db.models import Usuario
+from app.security.jwt import get_current_user
+from app.enums import Role
 
 
 class OAuth2EmailRequestForm(OAuth2PasswordRequestForm):
@@ -29,4 +32,14 @@ class OAuth2EmailRequestForm(OAuth2PasswordRequestForm):
     @email.setter
     def email(self, value):
         self.username = value
+
+
+def require_admin(user: Usuario = Depends(get_current_user)):
+    """Verifica si el usuario es administrador"""
+    if user.role != Role.ADMIN:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Acceso restringido a administradores",
+        )
+    return user
     

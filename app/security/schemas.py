@@ -3,6 +3,7 @@ from fastapi import Form
 from typing import Optional
 from app.security.utils import validar_contraseña_fuerte
 from datetime import datetime
+from app.enums import AccountStatus, Role
 
 
 class Usuario(BaseModel):
@@ -23,8 +24,8 @@ class UsuarioCreate(BaseModel):
     shipping_city: Optional[str] = None
     shipping_country: Optional[str] = None
     shipping_zip_code: Optional[str] = None
-    account_status: Optional[str] = "pendiente"
-    role: Optional[str] = "cliente"
+    account_status: AccountStatus = AccountStatus.pending
+    role: Role = Role.CLIENT
     two_factor_enabled: Optional[bool] = False
     is_email_verified: Optional[bool] = False
 
