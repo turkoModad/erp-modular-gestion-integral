@@ -1,13 +1,13 @@
 from app.db.models.models import Usuario
 from app.security.hashing import hash_password
-from datetime import datetime
+from datetime import date
 
 
 def test_creacion_usuario(db_session):
     """Prueba completa de CRUD para usuario"""
     password = "Password123!"
     password_hash = hash_password(password)
-    hoy = datetime.today()
+    hoy = date.today()
     hace_20_anios = hoy.replace(year=hoy.year - 20)
     nuevo_usuario = Usuario(
         first_name="Usuario de Prueba",

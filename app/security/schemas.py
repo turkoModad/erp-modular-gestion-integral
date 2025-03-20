@@ -3,7 +3,7 @@ from fastapi import Form
 from typing import Optional
 from app.security.utils import validar_contraseña_fuerte
 from app.enums import AccountStatus, Role
-from datetime import datetime
+from datetime import datetime, date
 
 
 class Usuario(BaseModel):
@@ -19,7 +19,7 @@ class UsuarioCreate(BaseModel):
     first_name: str
     last_name: str
     phone_number: Optional[str] = None
-    date_of_birth: datetime
+    date_of_birth: date
     shipping_address: Optional[str] = None
     shipping_city: Optional[str] = None
     shipping_country: Optional[str] = None
@@ -55,7 +55,7 @@ class UsuarioOut(BaseModel):
     first_name: str
     last_name: str
     phone_number: Optional[str] = None
-    date_of_birth: datetime
+    date_of_birth: date
     shipping_address: Optional[str] = None
     shipping_city: Optional[str] = None
     shipping_country: Optional[str] = None
@@ -80,7 +80,11 @@ class OAuth2EmailPasswordRequestForm:
         self.email = username 
         self.password = password
 
+    model_config = ConfigDict(from_attributes=True)
+
 
 class ActivacionRequest(BaseModel):
     token: str = Form(...)
     email: EmailStr = Form(...)   
+
+    model_config = ConfigDict(from_attributes=True)

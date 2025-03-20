@@ -7,7 +7,7 @@ from app.db.config import settings
 from app.db.models.models import Usuario
 from app.security.hashing import hash_password
 from main import app
-from datetime import datetime
+from datetime import datetime, date
 
 
 engine = create_engine(settings.DATABASE_URL, connect_args={"check_same_thread": False})
@@ -38,22 +38,30 @@ def client(db_session):
     return TestClient(app)
 
 
-def test_registro_usuario(client):
-    response = client.post("/auth/registro/", json={        
-        "email": "test@example.com",
-        "password": "pasSword$123",
-        "first_name": "Test",
-        "last_name": "User",
-        "phone_number": "1234567890",
-        "date_of_birth": "1990-01-01",
-        "shipping_address": "123 Main St",
-        "shipping_city": "Springfield",
-        "shipping_country": "USA",
-        "shipping_zip_code": "12345",
-        "two_factor_enabled": True
+def test_registro_usuario(client):    
+    hoy = date.today()
+    hace_20_anios = hoy.replace(year=hoy.year - 20)
+    response = client.post("/auth/registro/", json={ 
+    "email": "user222@example.com",
+    "password": "stR#12¡?ing",
+    "first_name": "string",
+    "last_name": "string",
+    "phone_number": "string",
+    "date_of_birth": hace_20_anios.isoformat(),
+    "shipping_address": "string",
+    "shipping_city": "string",
+    "shipping_country": "string",
+    "shipping_zip_code": "string",
+    "account_status": "pending",
+    "role": "CLIENT",
+    "two_factor_enabled": "false",
+    "is_email_verified": "false"
     })
+
     assert response.status_code == 200
     data = response.json()
+    print(f"Tipo de date_of_birth: {type(data['date_of_birth'])}, Valor: {data['date_of_birth']}")
+    
     assert data["email"] == "test@example.com"
 
 
@@ -61,7 +69,7 @@ def test_login_exitoso(client, db_session):
     # Crear usuario con contraseña hasheada
     password = "23secur#Password"
     password_hash = hash_password(password)
-    hoy = datetime.today()
+    hoy = date.today()
     hace_20_anios = hoy.replace(year=hoy.year - 20)
 
     user = Usuario(
@@ -91,7 +99,7 @@ def test_login_fallido(client):
 def test_perfil_usuario(client, db_session):
     password = "09secur#Password"
     password_hash = hash_password(password)
-    hoy = datetime.today()
+    hoy = date.today()
     hace_20_anios = hoy.replace(year=hoy.year - 20)
     user = Usuario(
         first_name="Profile12", 
@@ -115,7 +123,7 @@ def test_registro_usuario_duplicado(client, db_session):
     # Crear usuario inicial
     password = "23secur?Password"
     password_hash = hash_password(password)
-    hoy = datetime.today()
+    hoy = date.today()
     hace_20_anios = hoy.replace(year=hoy.year - 20)
     
     user = Usuario(
@@ -166,7 +174,7 @@ def test_acceso_ruta_protegida_sin_autenticacion(client):
 def test_acceso_ruta_protegida_con_token_valido(client, db_session):
     password = "valiD@password"
     password_hash = hash_password(password)
-    hoy = datetime.today()
+    hoy = date.today()
     hace_20_anios = hoy.replace(year=hoy.year - 20)
     user = Usuario(
         first_name="Protected User", 

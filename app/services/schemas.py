@@ -8,3 +8,9 @@ class UsuarioActivacion(BaseModel):
     email_verification_expiration: datetime
 
     model_config = ConfigDict(from_attributes=True)
+
+
+
+class OTPRequest(BaseModel):
+    email: str
+    otp_code: str

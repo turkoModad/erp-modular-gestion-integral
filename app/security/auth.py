@@ -10,7 +10,7 @@ from app.services.email_service import enviar_email_activacion
 from app.services.hash_activacion_email import crear_token, verificar_token
 from app.services.otp_service import OTPService
 from app.services.email_otp import enviar_email_otp
-from app.services.service import OTPRequest
+from app.services.schemas import OTPRequest
 from app.security.schemas import UsuarioCreate, UsuarioOut
 from app.security.dependencies import OAuth2EmailRequestForm
 from app.enums import AccountStatus
@@ -160,7 +160,7 @@ async def login(form_data: OAuth2EmailRequestForm = Depends(), db: Session = Dep
             headers={"WWW-Authenticate": "Bearer"},
         )
     
-    if not user.account_status:
+    if user.account_status is None or user.account_status != AccountStatus.active:
         logger.warning(f"Usuario {form_data.email} no activado")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,

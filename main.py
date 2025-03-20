@@ -10,7 +10,6 @@ from app.users import routes as users
 from app.admin import routes as admin
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, RedirectResponse
-from app.services import service
 from fastapi import FastAPI
 from fastapi.openapi.utils import get_openapi
 
@@ -33,7 +32,7 @@ app = FastAPI(lifespan=lifespan)
 app.include_router(auth.router, prefix="/auth", tags=["Auth"])
 app.include_router(users.router, prefix="/users", tags=["Users"])
 app.include_router(admin.router, prefix="/admin", tags=["Admin"])
-app.include_router(service.router, prefix="/service", tags=["Services"])
+
 
 app.mount("/static", StaticFiles(directory="frontend/static"), name="static")
 

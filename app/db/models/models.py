@@ -1,8 +1,10 @@
-from sqlalchemy import Column, Integer, String, DateTime, Boolean, Enum, ForeignKey
+from sqlalchemy import Column, Integer, String, DateTime, Boolean, Enum, ForeignKey, Date
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
 from app.db.database import Base
 from app.enums import AccountStatus, Role
+from datetime import date
+
 
 
 class Usuario(Base):
@@ -12,7 +14,7 @@ class Usuario(Base):
     password_hash = Column(String(255), nullable = False)
     first_name = Column(String(100), nullable = False)
     last_name = Column(String(100), nullable = False)
-    date_of_birth = Column(DateTime, nullable = False) 
+    date_of_birth = Column(Date, nullable = False) 
     phone_number = Column(String(20), nullable = True)       
     shipping_address = Column(String(255), nullable = True)
     shipping_city = Column(String(100), nullable = True)

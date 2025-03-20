@@ -35,7 +35,7 @@ def enviar_email_activacion(email: str, token: str, nombre: str):
         <p>Haz clic en el siguiente enlace para activar tu cuenta:</p>
         <a href="http://localhost:{PORT}/auth/activar/?email={email}&token={token}">Activar en Local</a>
         """
-                  
+        logger.info(f"Mensaje de activacion: {cuerpo}")        
         mensaje.attach(MIMEText(cuerpo, "html"))
         
         with smtplib.SMTP_SSL(SMTP_SERVER, SMTP_PORT) as server:
