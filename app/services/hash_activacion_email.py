@@ -1,25 +1,43 @@
 import bcrypt
-import secrets
-import datetime
+import os
+from uuid import uuid4
+import hmac
+import hashlib
+from app.db.models.models import Usuario
+from dotenv import load_dotenv
+from datetime import datetime, timedelta
+
+
+load_dotenv()
+
+SECRET_KEY = os.getenv("SECRET_KEY")
+EXPIRATION_HOURS = int(os.getenv("EXPIRATION_HOURS"))
 
 
 def generar_token_activacion():
-    return secrets.token_bytes(32).hex()
+    token = uuid4().hex
+    signature = hmac.new(SECRET_KEY.encode(), token.encode(), hashlib.sha256).hexdigest()
+    return f"{token}.{signature}" 
 
 
-def crear_token(email):
-    token = generar_token_activacion()
-    hashed_token = bcrypt.hashpw(token.encode('utf-8'), bcrypt.gensalt(rounds=10))
-    expiracion = datetime.datetime.now() + datetime.timedelta(hours=6)
+def verificar_token(token: str, usuario: Usuario):
+    if not usuario:
+        raise ValueError("Usuario no existe")
     
-    return token, hashed_token.decode('utf-8'), expiracion
-
-
-def verificar_token(token_recibido, hash_almacenado, expiracion_almacenada):
-    if datetime.datetime.now() > expiracion_almacenada:
+    if not usuario.email_verification_token:
+        raise ValueError("Token no configurado")
+    
+    if datetime.now() > usuario.email_verification_expiration:
         raise ValueError("Token expirado")
     
-    if not bcrypt.checkpw(token_recibido.encode('utf-8'), hash_almacenado.encode('utf-8')):
-        raise ValueError("Token inválido")
+    if not bcrypt.checkpw(token.encode(), usuario.email_verification_token.encode()):
+        raise ValueError("Token inválido")    
+
+
+def crear_token(email: str):
+    token = uuid4().hex + email
+    hashed_token = bcrypt.hashpw(token.encode(), bcrypt.gensalt())    
+    expiracion = datetime.now() + timedelta(hours=1)    
+    expiracion_str = expiracion.isoformat()
     
-    return True
+    return token, hashed_token.decode(), expiracion_str

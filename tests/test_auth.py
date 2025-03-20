@@ -4,7 +4,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from app.db.database import Base, get_db
 from app.db.config import settings
-from app.db.models import Usuario
+from app.db.models.models import Usuario
 from app.security.hashing import hash_password
 from main import app
 from datetime import datetime

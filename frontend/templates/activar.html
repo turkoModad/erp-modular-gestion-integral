@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Activando cuenta...</title>
+    <script>
+        document.addEventListener('DOMContentLoaded', async () => {
+            try {
+                const response = await fetch("/auth/activate/", {
+                    method: "POST",
+                    credentials: "include" 
+                });
+
+                const data = await response.json();
+                
+                if (!response.ok) throw new Error(data.detail || "Error desconocido");
+                window.location.href = "/docs";
+            } catch (error) {
+                console.error("Error de activación:", error);
+                document.getElementById("error-message").textContent = `Error: ${error.message}`;
+            }
+        });
+    </script>
+</head>
+<body>
+    <p>Activando tu cuenta, por favor espera...</p>
+    <div id="error-message" style="color: red;"></div>
+</body>
+</html>

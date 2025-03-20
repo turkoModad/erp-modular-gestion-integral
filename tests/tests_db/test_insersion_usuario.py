@@ -1,4 +1,4 @@
-from app.db.models import Usuario
+from app.db.models.models import Usuario
 from app.security.hashing import hash_password
 from datetime import datetime
 

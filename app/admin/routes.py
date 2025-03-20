@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends
 from app.security.dependencies import require_admin 
-from app.db.models import Usuario
+from app.db.models.models import Usuario
 
 
 router = APIRouter()

@@ -2,8 +2,8 @@ from pydantic import BaseModel, ConfigDict, EmailStr, field_validator
 from fastapi import Form
 from typing import Optional
 from app.security.utils import validar_contraseña_fuerte
-from datetime import datetime
 from app.enums import AccountStatus, Role
+from datetime import datetime
 
 
 class Usuario(BaseModel):
@@ -79,3 +79,8 @@ class OAuth2EmailPasswordRequestForm:
     ):
         self.email = username 
         self.password = password
+
+
+class ActivacionRequest(BaseModel):
+    token: str = Form(...)
+    email: EmailStr = Form(...)   

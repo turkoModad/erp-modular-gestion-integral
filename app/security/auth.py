@@ -1,17 +1,21 @@
-from fastapi import APIRouter, HTTPException, Depends, status
+from fastapi import APIRouter, HTTPException, Depends, status, Request
+from fastapi.responses import JSONResponse, Response
+from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 from app.db.database import get_db
-from app.security.schemas import UsuarioCreate, UsuarioOut
-from app.db.models import Usuario
+from app.db.models.models import Usuario
 from app.security.hashing import verify_password, hash_password
 from app.security.jwt import create_access_token
 from app.services.email_service import enviar_email_activacion
-from app.services.hash_activacion_email import crear_token
-import bcrypt
+from app.services.hash_activacion_email import crear_token, verificar_token
+from app.services.otp_service import OTPService
+from app.services.email_otp import enviar_email_otp
+from app.services.service import OTPRequest
+from app.security.schemas import UsuarioCreate, UsuarioOut
+from app.security.dependencies import OAuth2EmailRequestForm
+from app.enums import AccountStatus
 import datetime
 import logging
-from app.enums import AccountStatus
-from app.security.dependencies import OAuth2EmailRequestForm
 
 
 logging.basicConfig(level=logging.INFO)
@@ -19,6 +23,8 @@ logger = logging.getLogger(__name__)
 
 
 router = APIRouter()
+
+templates = Jinja2Templates(directory="frontend/templates")
 
 
 @router.post("/registro/", response_model=UsuarioOut)
@@ -33,7 +39,7 @@ def register(user: UsuarioCreate, db: Session = Depends(get_db)):
         )
     
     hashed_password = hash_password(user.password)
-    token, hash_token, expiracion = crear_token(user.email)
+    token, hash_token, expiracion = crear_token(user.email)    
 
     new_user = Usuario( 
         email = user.email, 
@@ -55,6 +61,7 @@ def register(user: UsuarioCreate, db: Session = Depends(get_db)):
         db.add(new_user)
         db.commit()
         db.refresh(new_user)
+        
 
         enviar_email_activacion(
             email = new_user.email,
@@ -71,95 +78,128 @@ def register(user: UsuarioCreate, db: Session = Depends(get_db)):
             status_code = status.HTTP_400_BAD_REQUEST, 
             detail = f"Error al crear el usuario: {str(e)}"
         )
-    finally:
-        db.close()
+    
 
     
-@router.get("/activate/")
-def activate_email(email: str, token: str, db: Session = Depends(get_db)):
-    logger.info(f"Intento de activación de cuenta para: {email}")
+@router.get("/activar/", response_class=JSONResponse)
+def mostrar_form_activacion(request: Request, email: str, token: str, response: Response):
+    logger.info(f"Generando formulario de activación para el email: {email}")
+    
+    response = templates.TemplateResponse("activar.html", {"request": request})
+    response.set_cookie(
+        key="activation_data",
+        value=f"{email}:{token}",
+        secure=False,
+        samesite="Lax",
+        max_age=600 
+    )
+    
+    logger.info(f"Cookie de activación establecida para el email: {email}")
+    return response
+
+
+
+@router.post("/activate/")
+def activate_email(request: Request, response: Response, db: Session = Depends(get_db)):
+    # Leer datos desde cookie
+    activation_data = request.cookies.get("activation_data")
+    
+    if not activation_data:
+        logger.warning("Intento de activación sin datos de cookie")
+        raise HTTPException(400, "Datos de activación no encontrados")
+    
+    email, token = activation_data.split(":", 1)
+    
+    logger.info(f"Recibido email: {email} y token para activación.")
+    
+    if not email or not token:
+        logger.warning("Faltan datos de activación")
+        raise HTTPException(status_code=400, detail="Faltan datos de activación")
+    
     usuario = db.query(Usuario).filter(Usuario.email == email).first()
     if not usuario:
-        logger.warning(f"Activación fallida: Usuario {email} no encontrado")
-        raise HTTPException(
-            status_code = status.HTTP_404_NOT_FOUND, 
-            detail = "Usuario no encontrado"
-        )
+        logger.warning(f"El usuario con email {email} no existe en la base de datos.")
+        raise HTTPException(status_code=404, detail="Usuario no encontrado")
+
+    try:
+        verificar_token(token, usuario)
+        logger.info(f"Token de activación verificado para el usuario: {email}")
+    except ValueError as e:
+        logger.error(f"Error al verificar el token para el usuario {email}: {str(e)}")
+        raise HTTPException(status_code=400, detail=str(e))
     
-    if not usuario.email_verification_token or not usuario.email_verification_expiration:
-        logger.warning(f"Activación fallida: No se encontró token para {email}")
-        raise HTTPException(
-            status_code = status.HTTP_400_BAD_REQUEST, 
-            detail = "No se encontró un token de verificación"
-        )
-    
-    if datetime.datetime.now() > usuario.email_verification_expiration:
-        logger.warning(f"Activación fallida: Token expirado para {email}")    
-        raise HTTPException(
-            status_code = status.HTTP_400_BAD_REQUEST, 
-            detail = "El token ha expirado"
-        )
-    
-    if not bcrypt.checkpw(token.encode('utf-8'), usuario.email_verification_token.encode('utf-8')):
-        logger.warning(f"Activación fallida: Token inválido para {email}")
-        raise HTTPException(
-            status_code = status.HTTP_400_BAD_REQUEST, 
-            detail = "Token inválido"
-        )
-    
-    if usuario.account_status == AccountStatus.pending:    
+    if usuario.account_status == AccountStatus.pending:
         usuario.is_email_verified = True
         usuario.email_verification_token = None
         usuario.email_verification_expiration = None 
         usuario.account_status = AccountStatus.active  
         db.commit()
         db.refresh(usuario)
-        db.close()
-        logger.info(f"Usuario {email} activado exitosamente.")
-        return {"message": "Email activado exitosamente"}
-    elif usuario.account_status == AccountStatus.active:
-        logger.warning(f"Activación fallida: Usuario {email} ya ha sido activado")
-        raise HTTPException(
-            status_code = status.HTTP_400_BAD_REQUEST, 
-            detail = "El usuario ya ha sido activado"
-        )
-    elif usuario.account_status == AccountStatus.banned:
-        logger.warning(f"Activación fallida: Usuario {email} ha sido suspendido")
-        raise HTTPException(
-            status_code = status.HTTP_400_BAD_REQUEST, 
-            detail = "El usuario ha sido suspendido"
-        )
-    elif usuario.account_status == AccountStatus.deleted:
-        logger.warning(f"Activación fallida: Usuario {email} ha sido eliminado")
-        raise HTTPException(
-            status_code = status.HTTP_400_BAD_REQUEST, 
-            detail = "El usuario ha sido eliminado"
-        )
-    else:
-        logger.warning(f"Activación fallida: Estado de cuenta inválido para {email} estado: {usuario.account_status}")
-        raise HTTPException(
-            status_code = status.HTTP_400_BAD_REQUEST, 
-            detail = "Estado de cuenta inválido"
-        )
+
+        response.delete_cookie("activation_data")
+
+        logger.info(f"Cuenta activada exitosamente para el usuario {email}")
+        return JSONResponse(content={"message": "Email activado exitosamente"})
+    
+    logger.warning(f"El usuario {email} ya ha sido activado o no es válido para activación.")
+    raise HTTPException(status_code=400, detail="El usuario ya ha sido activado o no es válido")
+
 
 
 @router.post("/login")
 async def login(form_data: OAuth2EmailRequestForm = Depends(), db: Session = Depends(get_db)):
     logger.info(f"Intento de login para el usuario: {form_data.email}")
+    
     user = db.query(Usuario).filter(Usuario.email == form_data.username).first()
+    
     if not user or not verify_password(form_data.password, user.password_hash):
         logger.warning(f"Inicio de sesión fallido para {form_data.email}")
         raise HTTPException(
-            status_code = status.HTTP_401_UNAUTHORIZED,
-            detail = "Credenciales incorrectas",
-            headers = {"WWW-Authenticate": "Bearer"},
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Credenciales incorrectas",
+            headers={"WWW-Authenticate": "Bearer"},
         )
     
+    if not user.account_status:
+        logger.warning(f"Usuario {form_data.email} no activado")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Cuenta no activada. Revisa tu correo electrónico para activarla.",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    
+    otp_service = OTPService(db) 
+    otp_code = otp_service.generate_otp(user.email)
+    await enviar_email_otp(user.email, otp_code)
+
     user.last_login = datetime.datetime.now()
     db.commit()
-    db.refresh(user)
-    db.close()
+    db.refresh(user)  
+
+    logger.info(f"OTP enviado para el usuario {form_data.email}")
     
-    access_token = create_access_token(data={"email": user.email})
-    logger.info(f"Inicio de sesión exitoso para {form_data.email}, última conexión actualizada.")
+    return {"detail": "OTP enviado a tu correo. Ingresa el código para completar el login."}
+
+
+@router.post("/verify-otp")
+async def verify_otp(
+    otp_data: OTPRequest, 
+    db: Session = Depends(get_db)
+    ):
+    logger.info(f"Verificando OTP para el usuario: {otp_data.email}")
+    otp_service = OTPService(db)
+    is_valid = otp_service.verify_otp(otp_data.email, otp_data.otp_code)
+    
+    if not is_valid:
+        logger.warning(f"OTP incorrecto o expirado para el usuario {otp_data.email}")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="OTP incorrecto o expirado.",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    access_token = create_access_token(
+    email=otp_data.email, 
+    otp_verified=True
+    )    
+    logger.info(f"Login exitoso para el usuario {otp_data.email}.")    
     return {"access_token": access_token, "token_type": "bearer"}

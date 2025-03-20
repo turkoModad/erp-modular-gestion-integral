@@ -3,9 +3,9 @@ from sqlalchemy.orm import Session
 from app.db.database import get_db
 from app.users.schemas import UsuarioUpdatePassword, UsuarioUpdate
 from app.security.schemas import UsuarioOut
-from app.db.models import Usuario
+from app.db.models.models import Usuario
 from app.security.hashing import verify_password, hash_password
-from app.security.jwt import get_current_user
+from app.security.jwt import get_current_verified_user
 import logging
 
 
@@ -16,7 +16,7 @@ router = APIRouter()
 
 
 @router.post("/users/me", response_model=UsuarioOut)
-async def read_users_me(current_user: Usuario = Depends(get_current_user)):
+async def read_users_me(current_user: Usuario = Depends(get_current_verified_user)):
     logger.info(f"Consulta de datos del usuario autenticado: {current_user.email}")
     return current_user
 
@@ -25,7 +25,7 @@ async def read_users_me(current_user: Usuario = Depends(get_current_user)):
 async def update_user_profile(
     user_update: UsuarioUpdate,
     db: Session = Depends(get_db),
-    current_user: Usuario = Depends(get_current_user)
+    current_user: Usuario = Depends(get_current_verified_user)
 ):
     update_data = user_update.model_dump(exclude_unset=True)  
     
@@ -60,7 +60,7 @@ async def update_user_profile(
 async def update_password(
     password_data: UsuarioUpdatePassword,
     db: Session = Depends(get_db),
-    current_user: Usuario = Depends(get_current_user)
+    current_user: Usuario = Depends(get_current_verified_user)
 ):
     logger.info(f"Intento de cambio de contraseña para {current_user.email}")
 

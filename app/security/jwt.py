@@ -1,18 +1,18 @@
 from datetime import datetime, timedelta, timezone
-from jose import jwt
+from jose import jwt, JWTError
 from dotenv import load_dotenv
 import os
 from fastapi.security import OAuth2PasswordBearer
-from fastapi import Depends, HTTPException
-from typing import Optional
-from app.db.models import Usuario, AccountStatus
-from sqlalchemy.orm import Session
+from fastapi import Depends, HTTPException, status
+from app.db.models.models import Usuario, AccountStatus
 from app.db.database import get_db
 from app.security.exceptions import TokenValidationError
+from typing import Optional, Dict, Any
+from sqlalchemy.orm import Session
 
 
 oauth2_scheme = OAuth2PasswordBearer(
-    tokenUrl = "/auth/login", scheme_name = "EmailBasedAuth")
+    tokenUrl = "/auth/login", scheme_name = "bearerAuth")
 
 load_dotenv()
 
@@ -21,62 +21,69 @@ ALGORITHM = os.getenv("ALGORITHM")
 ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES")) 
 
 
-def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
+def create_access_token(
+    email: str, 
+    otp_verified: bool = False, 
+    expires_delta: Optional[timedelta] = None, 
+    extra_data: Optional[Dict[str, Any]] = None
+) -> str:
     """
-    Crea un JWT usando el email como subject (sub)
+    Crea un token JWT usando el email como subject (sub).
     
     Args:
-        data: Diccionario con los datos del usuario (debe contener 'email')
-        expires_delta: Tiempo de expiración personalizado
+        email (str): Correo del usuario.
+        otp_verified (bool): Indica si el usuario ha pasado la verificación OTP.
+        expires_delta (Optional[timedelta]): Tiempo de expiración personalizado.
+        extra_data (Optional[Dict[str, Any]]): Información adicional que se quiera incluir en el token.
     
     Returns:
-        str: Token JWT firmado
+        str: Token JWT firmado.
     """
-    if "email" not in data:
+    if not email:
         raise ValueError("El campo 'email' es requerido para generar el token")
+
+    to_encode = {
+        "sub": email,
+        "email": email,
+        "otp_verified": otp_verified,  
+        "exp": datetime.now(timezone.utc) + (
+            expires_delta or timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+        )
+    }
     
-    to_encode = data.copy()
-    expire = datetime.now(tz = timezone.utc) + (
-        expires_delta or timedelta(minutes = ACCESS_TOKEN_EXPIRE_MINUTES)
-    )
-    to_encode.update({
-        "exp": expire,
-        "sub": str(to_encode["email"])
-        })
-    return jwt.encode(to_encode, SECRET_KEY, algorithm = ALGORITHM)
+    if extra_data:
+        to_encode.update(extra_data)
+
+    return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
 
 
-def verify_access_token(token: str):
+
+def verify_access_token(token: str) -> Dict[str, Any]:
     """
-    Verifica y decodifica un JWT
-    
+    Verifica y decodifica un token de acceso JWT.
+
     Args:
-        token: JWT a validar
-    
+        token (str): El token JWT a verificar.
+
     Returns:
-        dict: Payload decodificado
-    
+        Dict[str, Any]: El payload decodificado si el token es válido.
+
     Raises:
-        TokenValidationError: Si el token es inválido o está expirado
+        TokenValidationError: Si el token es inválido o ha expirado.
     """
+    credentials_exception = TokenValidationError("Token inválido o expirado")
+
     try:
-        payload = jwt.decode(
-            token, 
-            SECRET_KEY, 
-            algorithms = [ALGORITHM],
-            options = {"require_sub": True}
-        )                
-        if not payload.get("sub"):
-            raise TokenValidationError("Subject (sub) no encontrado en el token")
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])        
+        email: str = payload.get("sub")
+        if not email:
+            raise credentials_exception
         
-        return payload
+        return payload  
     
-    except jwt.ExpiredSignatureError:
-        raise TokenValidationError("Token expirado")
-    except jwt.JWTClaimsError:
-        raise TokenValidationError("Claim inválido en el token")
-    except Exception as e:
-        raise TokenValidationError(f"Error validando token: {str(e)}")
+    except JWTError:
+        raise credentials_exception
+
 
 
 def get_current_user(
@@ -117,3 +124,45 @@ def get_current_user(
         raise e
     except Exception as e:
         raise TokenValidationError(str(e))
+    
+
+
+def get_current_verified_user(token: str = Depends(oauth2_scheme),
+    db: Session = Depends(get_db)
+) -> Usuario:
+    credentials_exception = HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Could not validate credentials",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
+    
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        email: str = payload.get("sub")
+        if email is None:
+            raise credentials_exception
+        
+        print("Access Token:", token)
+        print("Sub (email):", email)
+
+    except JWTError:
+        raise credentials_exception
+    
+
+    if not payload.get("otp_verified", False):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="OTP verification required"
+        )
+    
+    user = db.query(Usuario).filter(Usuario.email == email).first()
+    if user is None:
+        raise credentials_exception
+
+    if not user.account_status:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Account inactive"
+        )
+
+    return user

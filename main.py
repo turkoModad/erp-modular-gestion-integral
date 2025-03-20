@@ -10,6 +10,9 @@ from app.users import routes as users
 from app.admin import routes as admin
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, RedirectResponse
+from app.services import service
+from fastapi import FastAPI
+from fastapi.openapi.utils import get_openapi
 
 
 logging.basicConfig(level=logging.INFO)
@@ -30,8 +33,34 @@ app = FastAPI(lifespan=lifespan)
 app.include_router(auth.router, prefix="/auth", tags=["Auth"])
 app.include_router(users.router, prefix="/users", tags=["Users"])
 app.include_router(admin.router, prefix="/admin", tags=["Admin"])
+app.include_router(service.router, prefix="/service", tags=["Services"])
 
 app.mount("/static", StaticFiles(directory="frontend/static"), name="static")
+
+
+security_schemes = {
+    "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT"
+    }
+}
+
+def custom_openapi():
+    if app.openapi_schema:
+        return app.openapi_schema
+    openapi_schema = get_openapi(
+        title="Mi API",
+        version="1.0",
+        description="Autenticación JWT con OTP",
+        routes=app.routes,
+    )
+    openapi_schema["components"]["securitySchemes"] = security_schemes
+    openapi_schema["security"] = [{"bearerAuth": []}]
+    app.openapi_schema = openapi_schema
+    return app.openapi_schema
+
+app.openapi = custom_openapi
 
 
 async def initialize_database():
@@ -46,7 +75,8 @@ async def initialize_database():
     except Exception as e:
         logger.error(f"Error crítico durante la inicialización: {str(e)}")
         raise RuntimeError("Error en inicialización de base de datos")
-    
+
+
 
 @app.get("/")
 async def root():

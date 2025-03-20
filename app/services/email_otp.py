@@ -4,48 +4,53 @@ import os
 from email.mime.multipart import MIMEMultipart  
 from email.mime.text import MIMEText
 import logging
+import random
 
 
 load_dotenv()
+
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
 SMTP_SERVER = os.getenv("SMTP_SERVER")
-SMTP_PORT = os.getenv("SMTP_PORT")
+SMTP_PORT = int(os.getenv("SMTP_PORT"))
 SMTP_USER = os.getenv("SMTP_USER")
 SMTP_PASSWORD = os.getenv("SMTP_PASSWORD")
 PORT = os.getenv("PORT")
 
 
-def enviar_email_activacion(email: str, token: str, nombre: str):
-    logger.info(f"Preparando correo de activación para {email}")
-    
+def generar_otp() -> str:
+    otp_code = str(random.randint(100000, 999999))
+    return otp_code
+
+
+async def enviar_email_otp(email: str, otp_code: str):
+    logger.info(f"Preparando correo con OTP para {email}")
+
     try:
         mensaje = MIMEMultipart()
         mensaje["From"] = SMTP_USER
         mensaje["To"] = email
-        mensaje["Subject"] = f"{nombre}, activa tu cuenta en CodePyHub" 
-
-        print(token, nombre, email)       
+        mensaje["Subject"] = "Tu código de verificación"
         
         cuerpo = f"""
-        <h1>¡Bienvenido {nombre}!</h1>
-        <p>Haz clic en el siguiente enlace para activar tu cuenta:</p>
-        <a href="http://localhost:{PORT}/auth/activar/?email={email}&token={token}">Activar en Local</a>
+        <h1>¡Tu código de verificación OTP!</h1>
+        <p>Tu código OTP es: <strong>{otp_code}</strong></p>
+        <p>Este código es válido por 10 minutos.</p>
         """
-                  
+
         mensaje.attach(MIMEText(cuerpo, "html"))
-        
+
         with smtplib.SMTP_SSL(SMTP_SERVER, SMTP_PORT) as server:
             logger.info("Conectando con el servidor SMTP...")
             server.login(SMTP_USER, SMTP_PASSWORD)
             logger.info("Autenticación SMTP exitosa.")
-            
+
             server.sendmail(SMTP_USER, email, mensaje.as_string())
-            logger.info(f"Correo de activación enviado a {email}")
-    
+            logger.info(f"Correo de OTP enviado a {email}")
+
     except smtplib.SMTPException as e:
         logger.error(f"Error enviando correo a {email}: {e}")
     except Exception as e:

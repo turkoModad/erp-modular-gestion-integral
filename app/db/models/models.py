@@ -1,6 +1,7 @@
-from sqlalchemy import Column, Integer, String, DateTime, Boolean, Enum
-from app.db.database import Base
+from sqlalchemy import Column, Integer, String, DateTime, Boolean, Enum, ForeignKey
 from sqlalchemy.sql import func
+from sqlalchemy.orm import relationship
+from app.db.database import Base
 from app.enums import AccountStatus, Role
 
 
@@ -26,3 +27,27 @@ class Usuario(Base):
     is_email_verified = Column(Boolean, default = False)
     email_verification_token = Column(String(100), nullable = True) 
     email_verification_expiration = Column(DateTime, nullable = True)
+
+    otps = relationship("OTP", back_populates="user", cascade="all, delete-orphan")
+
+    def __repr__(self):
+        return f"<Usuario(email={self.email}, account_status={self.account_status})>"
+
+
+
+class OTP(Base):
+    __tablename__ = "otps"
+    
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey("usuarios.id"))
+    code = Column(String(6), nullable=False)
+    expiration = Column(DateTime, nullable=False)
+    is_used = Column(Boolean, default=False, nullable=False)
+
+    user = relationship("Usuario", back_populates="otps")
+    
+    def __init__(self, user_id: int, code: str, expiration: DateTime, is_used: bool = False):
+        self.user_id = user_id
+        self.code = code
+        self.expiration = expiration
+        self.is_used = is_used

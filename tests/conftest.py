@@ -3,7 +3,7 @@ from sqlalchemy import create_engine, inspect
 from sqlalchemy.orm import sessionmaker
 from app.db.database import Base
 from app.db.config import settings
-from app.db.models import Usuario
+from app.db.models.models import Usuario
 from app.security.hashing import hash_password
 from fastapi.testclient import TestClient
 from main import app
@@ -22,7 +22,6 @@ def setup_database():
     print("\n[1/3] Creando estructura de base de datos...")
     Base.metadata.create_all(engine)
     
-    # Verificación de tablas creadas
     inspector = inspect(engine)
     tables = inspector.get_table_names()
     print(f"[2/3] Tablas detectadas: {tables}")
