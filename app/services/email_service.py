@@ -28,12 +28,10 @@ def enviar_email_activacion(email: str, token: str, nombre: str):
         mensaje["To"] = email
         mensaje["Subject"] = f"{nombre}, activa tu cuenta en CodePyHub" 
 
-        print(token, nombre, email)       
-        
         cuerpo = f"""
         <h1>¡Bienvenido {nombre}!</h1>
         <p>Haz clic en el siguiente enlace para activar tu cuenta:</p>
-        <a href="http://localhost:{PORT}/auth/activar/?email={email}&token={token}">Activar en Local</a>
+        <a href="http://localhost:{PORT}/activar/?email={email}&token={token}">Activar en Local</a>
         """
         logger.info(f"Mensaje de activacion: {cuerpo}")        
         mensaje.attach(MIMEText(cuerpo, "html"))

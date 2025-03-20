@@ -3,7 +3,6 @@ from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
 from app.db.database import Base
 from app.enums import AccountStatus, Role
-from datetime import date
 
 
 
@@ -53,3 +52,13 @@ class OTP(Base):
         self.code = code
         self.expiration = expiration
         self.is_used = is_used
+        
+
+
+class FailedLoginAttempt(Base):
+    __tablename__ = "failed_login_attempts"
+    
+    email = Column(String, primary_key=True)
+    attempt_count = Column(Integer, default=1)
+    last_attempt = Column(DateTime, default=func.now())
+    is_locked = Column(Boolean, default=False)

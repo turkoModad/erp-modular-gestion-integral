@@ -17,7 +17,7 @@ def crear_token(email: str):
     hashed_token = bcrypt.hashpw(token.encode(), bcrypt.gensalt())    
     expiracion = datetime.now() + timedelta(hours=1)    
     expiracion_str = expiracion.isoformat()    
-    return token, hashed_token.decode(), expiracion_str
+    return token, hashed_token.decode(), expiracion_str 
 
 
 def verificar_token(token: str, usuario: Usuario):

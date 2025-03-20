@@ -3,7 +3,7 @@ from fastapi.responses import JSONResponse, Response
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 from app.db.database import get_db
-from app.db.models.models import Usuario
+from app.db.models.models import Usuario, FailedLoginAttempt
 from app.security.hashing import verify_password, hash_password
 from app.security.jwt import create_access_token
 from app.services.email_service import enviar_email_activacion
@@ -14,7 +14,7 @@ from app.services.schemas import OTPRequest
 from app.security.schemas import UsuarioCreate, UsuarioOut
 from app.security.dependencies import OAuth2EmailRequestForm
 from app.enums import AccountStatus
-import datetime
+from datetime import datetime, timedelta
 import logging
 
 
@@ -83,8 +83,7 @@ def register(user: UsuarioCreate, db: Session = Depends(get_db)):
     
 @router.get("/activar/", response_class=JSONResponse)
 def mostrar_form_activacion(request: Request, email: str, token: str, response: Response):
-    logger.info(f"Generando formulario de activación para el email: {email}")
-    
+    logger.info(f"Generando formulario de activación para el email: {email}")    
     response = templates.TemplateResponse("activar.html", {"request": request})
     response.set_cookie(
         key="activation_data",
@@ -147,18 +146,65 @@ def activate_email(request: Request, response: Response, db: Session = Depends(g
 
 
 @router.post("/login/")
-async def login(form_data: OAuth2EmailRequestForm = Depends(), db: Session = Depends(get_db)):
+async def login(form_data: OAuth2EmailRequestForm = Depends(), db: Session = Depends(get_db)):    
     logger.info(f"Intento de login para el usuario: {form_data.email}")
-    
     user = db.query(Usuario).filter(Usuario.email == form_data.username).first()
+    generic_error = HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Credenciales incorrectas",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
+    if not user:
+        logger.warning(f"Intento de login con usuario inexistente: {form_data.email}")
+        raise generic_error
+
+    failed_attempt = db.query(FailedLoginAttempt).filter(
+        FailedLoginAttempt.email == form_data.email
+    ).first()
+    
+    if failed_attempt and failed_attempt.is_locked:
+        tiempo_bloqueo = datetime.now() - failed_attempt.last_attempt
+        if tiempo_bloqueo < timedelta(minutes=15):
+            logger.warning(f"Cuenta {form_data.email} bloqueada temporalmente")
+            raise HTTPException(
+                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                detail="Demasiados intentos fallidos. Espere 15 minutos."
+            )
+        else:
+            # Eliminar registro si ya pasó el bloqueo
+            db.delete(failed_attempt)
+            db.commit()
+
+    
+    
     
     if not user or not verify_password(form_data.password, user.password_hash):
         logger.warning(f"Inicio de sesión fallido para {form_data.email}")
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Credenciales incorrectas",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
+        if failed_attempt:
+            failed_attempt.attempt_count += 1
+            failed_attempt.last_attempt = datetime.now()
+            if failed_attempt.attempt_count >= 5:
+                failed_attempt.is_locked = True
+        else:
+            failed_attempt = FailedLoginAttempt(
+                email=form_data.email,
+                attempt_count=1,
+                last_attempt=datetime.now()
+            )
+            db.add(failed_attempt)
+        
+        db.commit()
+        
+        # Verificar si se superó el límite
+        if failed_attempt.attempt_count >= 5:
+            logger.warning(f"Bloqueando cuenta: {form_data.email}")
+            raise HTTPException(
+                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                detail="Demasiados intentos fallidos. Cuenta bloqueada por 15 minutos."
+            )
+        
+        else:
+            raise generic_error
     
     if user.account_status is None or user.account_status != AccountStatus.active:
         logger.warning(f"Usuario {form_data.email} no activado")
@@ -168,16 +214,25 @@ async def login(form_data: OAuth2EmailRequestForm = Depends(), db: Session = Dep
             headers={"WWW-Authenticate": "Bearer"},
         )
     
+    failed_attempt = db.query(FailedLoginAttempt).filter(
+            FailedLoginAttempt.email == form_data.username
+        ).first()
+        
+    if failed_attempt:
+        db.delete(failed_attempt)
+        db.commit()  
+
+    
     otp_service = OTPService(db) 
     otp_code = otp_service.generate_otp(user.email)
     await enviar_email_otp(user.email, otp_code)
 
-    user.last_login = datetime.datetime.now()
+    user.last_login = datetime.now()
+
     db.commit()
     db.refresh(user)  
 
-    logger.info(f"OTP enviado para el usuario {form_data.email}")
-    
+    logger.info(f"OTP enviado para el usuario {form_data.email}")    
     return {"detail": "OTP enviado a tu correo. Ingresa el código para completar el login."}
 
 
