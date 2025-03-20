@@ -146,7 +146,7 @@ def activate_email(request: Request, response: Response, db: Session = Depends(g
 
 
 
-@router.post("/login")
+@router.post("/login/")
 async def login(form_data: OAuth2EmailRequestForm = Depends(), db: Session = Depends(get_db)):
     logger.info(f"Intento de login para el usuario: {form_data.email}")
     
@@ -181,7 +181,7 @@ async def login(form_data: OAuth2EmailRequestForm = Depends(), db: Session = Dep
     return {"detail": "OTP enviado a tu correo. Ingresa el código para completar el login."}
 
 
-@router.post("/verify-otp")
+@router.post("/verify_otp/")
 async def verify_otp(
     otp_data: OTPRequest, 
     db: Session = Depends(get_db)

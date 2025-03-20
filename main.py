@@ -29,12 +29,12 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(lifespan=lifespan)
 
-app.include_router(auth.router, prefix="/auth", tags=["Auth"])
-app.include_router(users.router, prefix="/users", tags=["Users"])
-app.include_router(admin.router, prefix="/admin", tags=["Admin"])
+app.include_router(auth.router, tags=["Auth"])
+app.include_router(users.router, tags=["Users"])
+app.include_router(admin.router, tags=["Admin"])
 
 
-app.mount("/static", StaticFiles(directory="frontend/static"), name="static")
+app.mount("/static/", StaticFiles(directory="frontend/static/"), name="static")
 
 
 security_schemes = {
@@ -82,7 +82,7 @@ async def root():
     return RedirectResponse(url="/docs")
 
 
-@app.get("/favicon.ico")
+@app.get("/favicon.ico/")
 async def get_favicon():
     return FileResponse("frontend/static/favicon.ico")
     

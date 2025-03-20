@@ -6,6 +6,6 @@ from app.db.models.models import Usuario
 router = APIRouter()
 
 
-@router.post("/admin")
+@router.post("/admin/")
 def admin_panel(user: Usuario = Depends(require_admin)): 
     return {"message": "Bienvenido, administrador"}

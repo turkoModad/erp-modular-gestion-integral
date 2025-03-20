@@ -15,13 +15,13 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
-@router.post("/users/me", response_model=UsuarioOut)
+@router.post("/users/consulta_datos/", response_model=UsuarioOut)
 async def read_users_me(current_user: Usuario = Depends(get_current_verified_user)):
     logger.info(f"Consulta de datos del usuario autenticado: {current_user.email}")
     return current_user
 
 
-@router.put("/users/me", response_model=UsuarioOut)
+@router.put("/users/actualizar_datos/", response_model=UsuarioOut)
 async def update_user_profile(
     user_update: UsuarioUpdate,
     db: Session = Depends(get_db),
@@ -56,7 +56,7 @@ async def update_user_profile(
     return response_data
 
 
-@router.put("/users/me/password")
+@router.put("/users/cambio_password/")
 async def update_password(
     password_data: UsuarioUpdatePassword,
     db: Session = Depends(get_db),
