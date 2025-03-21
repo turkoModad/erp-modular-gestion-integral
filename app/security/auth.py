@@ -13,7 +13,7 @@ from app.services.email_otp import enviar_email_otp
 from app.services.schemas import OTPRequest
 from app.security.schemas import UsuarioCreate, UsuarioOut
 from app.security.dependencies import OAuth2EmailRequestForm
-from app.enums import AccountStatus
+from app.enums import AccountStatus, Role
 from datetime import datetime, timedelta
 import logging
 
@@ -173,10 +173,7 @@ async def login(form_data: OAuth2EmailRequestForm = Depends(), db: Session = Dep
         else:
             # Eliminar registro si ya pasó el bloqueo
             db.delete(failed_attempt)
-            db.commit()
-
-    
-    
+            db.commit()   
     
     if not user or not verify_password(form_data.password, user.password_hash):
         logger.warning(f"Inicio de sesión fallido para {form_data.email}")
@@ -220,20 +217,24 @@ async def login(form_data: OAuth2EmailRequestForm = Depends(), db: Session = Dep
         
     if failed_attempt:
         db.delete(failed_attempt)
-        db.commit()  
+        db.commit() 
 
-    
-    otp_service = OTPService(db) 
-    otp_code = otp_service.generate_otp(user.email)
-    await enviar_email_otp(user.email, otp_code)
+    if user.two_factor_enabled or user.role == Role.ADMIN:    
+        otp_service = OTPService(db) 
+        otp_code = otp_service.generate_otp(user.email)
+        await enviar_email_otp(user.email, otp_code)
 
-    user.last_login = datetime.now()
+        user.last_login = datetime.now()
+        db.commit()
+        db.refresh(user)  
 
-    db.commit()
-    db.refresh(user)  
-
-    logger.info(f"OTP enviado para el usuario {form_data.email}")    
-    return {"detail": "OTP enviado a tu correo. Ingresa el código para completar el login."}
+        logger.info(f"OTP enviado para el usuario {form_data.email}")    
+        return {"detail": "OTP enviado a tu correo. Ingresa el código para completar el login."}
+    else:
+        access_token = create_access_token(email = user.email, otp_verified=True)
+        logger.info(f"Login exitoso para el usuario {user.email}.") 
+        logger.info(f" Para su seguridad, recuerde activar su doble factor de autenticacion")   
+        return {"access_token": access_token, "token_type": "bearer"}
 
 
 @router.post("/verify_otp/")

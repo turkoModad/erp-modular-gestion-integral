@@ -142,9 +142,6 @@ def get_current_verified_user(token: str = Depends(oauth2_scheme),
         if email is None:
             raise credentials_exception
         
-        print("Access Token:", token)
-        print("Sub (email):", email)
-
     except JWTError:
         raise credentials_exception
     
