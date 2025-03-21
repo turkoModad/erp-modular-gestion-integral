@@ -1,5 +1,5 @@
 from fastapi.security import OAuth2PasswordRequestForm
-from fastapi import Form, Depends, HTTPException, status
+from fastapi import Form, Depends, HTTPException, status, Request
 from typing import Optional
 from app.db.models.models import Usuario
 from app.security.jwt import get_current_user
@@ -47,5 +47,4 @@ def require_admin(user: Usuario = Depends(get_current_user)):
             detail="Acceso restringido solo para administradores",
         )
     logger.info(f"El usuario {user.email} tiene permisos de administrador y está accediendo a un recurso restringido.")
-    return user
-    
+    return user    

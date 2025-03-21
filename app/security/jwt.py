@@ -9,6 +9,7 @@ from app.db.database import get_db
 from app.security.exceptions import TokenValidationError
 from typing import Optional, Dict, Any
 from sqlalchemy.orm import Session
+from app.enums import Role
 
 
 oauth2_scheme = OAuth2PasswordBearer(
@@ -23,7 +24,8 @@ ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES"))
 
 def create_access_token(
     email: str, 
-    otp_verified: bool = False, 
+    role: Role,
+    otp_verified: bool = False,    
     expires_delta: Optional[timedelta] = None, 
     extra_data: Optional[Dict[str, Any]] = None
 ) -> str:
@@ -45,7 +47,8 @@ def create_access_token(
     to_encode = {
         "sub": email,
         "email": email,
-        "otp_verified": otp_verified,  
+        "otp_verified": otp_verified, 
+        "role": role.value,
         "exp": datetime.now(timezone.utc) + (
             expires_delta or timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
         )

@@ -6,6 +6,7 @@ import asyncio
 from contextlib import asynccontextmanager
 from app.db.database import Base, engine, check_tables_exist
 from app.security import auth
+from app.security.limiter import create_limiter
 from app.users import routes as users
 from app.admin import routes as admin
 from fastapi.staticfiles import StaticFiles
@@ -28,6 +29,8 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(lifespan=lifespan)
+
+create_limiter(app)
 
 app.include_router(auth.router, tags=["Auth"])
 app.include_router(users.router, tags=["Users"])
@@ -87,6 +90,15 @@ async def get_favicon():
     return FileResponse("frontend/static/favicon.ico")
     
 
-if __name__ == "__main__":
+if __name__ == "__main__":    
+    host = os.environ.get("HOST", "127.0.0.1") 
     port = int(os.environ.get("PORT", 8010))
-    uvicorn.run("main:app", host="127.0.0.1", port=port, reload=True)       
+    reload = os.environ.get("ENV") == "development" 
+    
+    uvicorn.run(
+        "main:app",
+        host=host,
+        port=port,
+        reload=reload,
+        workers=int(os.environ.get("WORKERS", 1))
+    )       

@@ -16,6 +16,8 @@ from app.security.dependencies import OAuth2EmailRequestForm
 from app.enums import AccountStatus, Role
 from datetime import datetime, timedelta
 import logging
+from slowapi import Limiter
+from slowapi.util import get_remote_address
 
 
 logging.basicConfig(level=logging.INFO)
@@ -25,6 +27,15 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 templates = Jinja2Templates(directory="frontend/templates")
+
+
+def get_limiter(request: Request):
+    if hasattr(request.app, "limiter"):
+        return request.app.limiter
+    raise RuntimeError("Limiter no ha sido inicializado correctamente")
+
+
+limiter = Limiter(key_func=get_remote_address)
 
 
 @router.post("/registro/", response_model=UsuarioOut)
@@ -231,14 +242,22 @@ async def login(form_data: OAuth2EmailRequestForm = Depends(), db: Session = Dep
         logger.info(f"OTP enviado para el usuario {form_data.email}")    
         return {"detail": "OTP enviado a tu correo. Ingresa el código para completar el login."}
     else:
-        access_token = create_access_token(email = user.email, otp_verified=True)
+        access_token = create_access_token(
+            email = user.email, 
+            otp_verified = True, 
+            role = Role(user.role) 
+        )
         logger.info(f"Login exitoso para el usuario {user.email}.") 
         logger.info(f" Para su seguridad, recuerde activar su doble factor de autenticacion")   
         return {"access_token": access_token, "token_type": "bearer"}
+    
+
 
 
 @router.post("/verify_otp/")
+@limiter.limit("5/minute")  
 async def verify_otp(
+    request: Request,
     otp_data: OTPRequest, 
     db: Session = Depends(get_db)
     ):
@@ -253,9 +272,14 @@ async def verify_otp(
             detail="OTP incorrecto o expirado.",
             headers={"WWW-Authenticate": "Bearer"},
         )
+    user = db.query(Usuario).filter(Usuario.email == otp_data.email).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="Usuario no encontrado")
+    
     access_token = create_access_token(
-    email=otp_data.email, 
-    otp_verified=True
+    email = otp_data.email, 
+    otp_verified = True,
+    role = Role(user.role)
     )    
     logger.info(f"Login exitoso para el usuario {otp_data.email}.")    
     return {"access_token": access_token, "token_type": "bearer"}

@@ -4,7 +4,7 @@ import os
 from email.mime.multipart import MIMEMultipart  
 from email.mime.text import MIMEText
 import logging
-import random
+import secrets
 
 
 load_dotenv()
@@ -22,7 +22,7 @@ PORT = os.getenv("PORT")
 
 
 def generar_otp() -> str:
-    otp_code = str(random.randint(100000, 999999))
+    otp_code = str(secrets.randbelow(900000) + 100000)
     return otp_code
 
 

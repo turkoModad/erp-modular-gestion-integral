@@ -1,8 +1,15 @@
 from sqlalchemy.orm import Session
 from datetime import datetime, timedelta
-import random
+import secrets
 from app.db.models.models import OTP, Usuario
 import logging
+from dotenv import load_dotenv
+import os
+
+
+load_dotenv()
+
+OTP_EXPIRATION = os.getenv("OTP_EXPIRATION")
 
 
 logger = logging.getLogger(__name__)
@@ -22,14 +29,14 @@ class OTPService:
            
             self.db_session.query(OTP).filter(OTP.user_id == user.id).delete()
             
-            otp_code = str(random.randint(100000, 999999))
-            expiration = datetime.now() + timedelta(minutes=10)
+            otp_code = str(secrets.randbelow(900000) + 100000)
+            expiration = datetime.now() + OTP_EXPIRATION
             
             otp_entry = OTP(
-                user_id=user.id,
-                code=otp_code,
-                expiration=expiration,
-                is_used=False
+                user_id = user.id,
+                code = otp_code,
+                expiration = expiration,
+                is_used = False
             )
             
             self.db_session.add(otp_entry)
