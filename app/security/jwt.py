@@ -28,7 +28,7 @@ def create_access_token(
     otp_verified: bool = False,    
     expires_delta: Optional[timedelta] = None, 
     extra_data: Optional[Dict[str, Any]] = None
-) -> str:
+    ) -> str:
     """
     Crea un token JWT usando el email como subject (sub).
     
@@ -92,7 +92,7 @@ def verify_access_token(token: str) -> Dict[str, Any]:
 def get_current_user(
     db: Session = Depends(get_db), 
     token: str = Depends(oauth2_scheme)
-):
+    ):
     """
     Obtiene el usuario actual basado en el token JWT
     
@@ -130,9 +130,11 @@ def get_current_user(
     
 
 
-def get_current_verified_user(token: str = Depends(oauth2_scheme),
-    db: Session = Depends(get_db)
-) -> Usuario:
+def get_current_verified_user(
+        token: str = Depends(oauth2_scheme),
+        db: Session = Depends(get_db)
+    ) -> Usuario:
+
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Could not validate credentials",

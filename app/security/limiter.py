@@ -4,7 +4,5 @@ from fastapi import FastAPI
 
 def create_limiter(app: FastAPI):
     limiter = Limiter(key_func=get_remote_address)
-    # Asociamos el limitador directamente a la app
     app.limiter = limiter
     return limiter
-
