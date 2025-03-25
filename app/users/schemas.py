@@ -1,7 +1,7 @@
 from typing import Optional
 from pydantic import BaseModel
-from pydantic import ConfigDict, field_validator
-from app.security.utils import validar_contraseña_fuerte
+from pydantic import ConfigDict
+from app.security.utils import PasswordStr
 
 
 class UsuarioUpdate(BaseModel):
@@ -19,13 +19,4 @@ class UsuarioUpdate(BaseModel):
 
 class UsuarioUpdatePassword(BaseModel):
     current_password: str
-    new_password: str
-
-    @field_validator("new_password")
-    def validate_password(cls, new_password):
-        if not validar_contraseña_fuerte(new_password):
-            raise ValueError(
-                "La nueva contraseña no es segura. Debe incluir al menos 8 caracteres, "
-                "una mayúscula, un número y un carácter especial."
-            )
-        return new_password
+    new_password: PasswordStr

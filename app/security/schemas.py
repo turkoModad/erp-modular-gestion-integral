@@ -4,6 +4,7 @@ from typing import Optional
 from app.security.utils import validar_contraseña_fuerte
 from app.enums import AccountStatus, Role
 from datetime import datetime, date
+from app.security.utils import PasswordStr
 
 
 class Usuario(BaseModel):
@@ -15,7 +16,7 @@ class Usuario(BaseModel):
 
 class UsuarioCreate(BaseModel):
     email: EmailStr
-    password: str
+    password: PasswordStr
     first_name: str
     last_name: str
     phone_number: Optional[str] = None
@@ -28,16 +29,6 @@ class UsuarioCreate(BaseModel):
     role: Role = Role.CLIENT
     two_factor_enabled: Optional[bool] = False
     is_email_verified: Optional[bool] = False
-
-
-    @field_validator('password')
-    def check_password_length(cls, password):
-        if len(password) < 8 or len(password) > 25:
-            raise ValueError("La contraseña debe tener entre 8 y 25 caracteres.")
-        
-        if not validar_contraseña_fuerte(password):
-            raise ValueError("La contraseña no es suficientemente fuerte. Debe tener al menos 8 caracteres, incluir una mayúscula, un número y un carácter especial.")
-        return password
 
     model_config = ConfigDict(from_attributes=True) 
 

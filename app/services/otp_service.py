@@ -9,7 +9,7 @@ import os
 
 load_dotenv()
 
-OTP_EXPIRATION = os.getenv("OTP_EXPIRATION")
+OTP_EXPIRATION = int(os.getenv("OTP_EXPIRATION", "10"))
 
 
 logger = logging.getLogger(__name__)
@@ -30,7 +30,7 @@ class OTPService:
             self.db_session.query(OTP).filter(OTP.user_id == user.id).delete()
             
             otp_code = str(secrets.randbelow(900000) + 100000)
-            expiration = datetime.now() + OTP_EXPIRATION
+            expiration = datetime.now() + timedelta(minutes=OTP_EXPIRATION)
             
             otp_entry = OTP(
                 user_id = user.id,

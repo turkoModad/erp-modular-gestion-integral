@@ -215,7 +215,8 @@ async def login(form_data: OAuth2EmailRequestForm = Depends(), db: Session = Dep
             raise generic_error
     
     if user.account_status is None or user.account_status != AccountStatus.active:
-        logger.warning(f"Usuario {form_data.email} no activado")
+        current_status = user.account_status.name if user.account_status else "None"
+        logger.warning(f"El usuario {form_data.email} no puede iniciar porque tiene un status de: {current_status}")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Cuenta no activada. Revisa tu correo electrónico para activarla.",
