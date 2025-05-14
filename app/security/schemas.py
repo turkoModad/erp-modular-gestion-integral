@@ -1,7 +1,6 @@
-from pydantic import BaseModel, ConfigDict, EmailStr, field_validator
+from pydantic import BaseModel, ConfigDict, EmailStr
 from fastapi import Form
 from typing import Optional
-from app.security.utils import validar_contraseña_fuerte
 from app.enums import AccountStatus, Role
 from datetime import datetime, date
 from app.security.utils import PasswordStr

@@ -1,13 +1,8 @@
-# import re
-
-# def validar_contraseña_fuerte(password: str) -> bool:
-#     password_regex = r"^(?=.*[A-Z])(?=.*[a-z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,25}$"
-#     return re.match(password_regex, password) is not None
-
 from pydantic import BeforeValidator
 from typing import Annotated
 import re
 from pydantic import Field
+
 
 def validar_contraseña_fuerte(password: str) -> str:
     """Valida: 8+ chars, 1 mayúscula, 1 minúscula, 1 número, 1 símbolo"""
