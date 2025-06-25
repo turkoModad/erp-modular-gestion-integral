@@ -35,16 +35,18 @@ def enviar_email_activacion(email: str, token: str, nombre: str):
         """
         logger.info(f"Mensaje de activacion: {cuerpo}")        
         mensaje.attach(MIMEText(cuerpo, "html"))
+        logger.info("Conectando con el servidor SMTP...")
         
-        with smtplib.SMTP_SSL(SMTP_SERVER, SMTP_PORT) as server:
-            logger.info("Conectando con el servidor SMTP...")
+        with smtplib.SMTP_SSL(SMTP_SERVER, SMTP_PORT, timeout=10) as server:
             server.login(SMTP_USER, SMTP_PASSWORD)
-            logger.info("Autenticación SMTP exitosa.")
+            logger.info("Autenticación SMTP exitosa.") 
             
             server.sendmail(SMTP_USER, email, mensaje.as_string())
             logger.info(f"Correo de activación enviado a {email}")
     
     except smtplib.SMTPException as e:
         logger.error(f"Error enviando correo a {email}: {e}")
+        raise RuntimeError(f"Fallo SMTP al enviar el email a {email}") from e
     except Exception as e:
         logger.error(f"Error inesperado enviando correo a {email}: {e}")
+        raise RuntimeError(f"Fallo inesperado al enviar el email a {email}") from e

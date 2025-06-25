@@ -69,27 +69,33 @@ def register(user: UsuarioCreate, db: Session = Depends(get_db)):
     )
 
     try:
-        db.add(new_user)
-        db.commit()
-        db.refresh(new_user)
-        
-
         enviar_email_activacion(
             email = new_user.email,
             token = token,
             nombre = f"{new_user.first_name} {new_user.last_name}"
         )
-
-        logger.info(f"Usuario {new_user.email} registrado exitosamente.")
-        return new_user
+    
     except Exception as e:
-        db.rollback()
-        logger.error(f"Error al registrar usuario {user.email}: {str(e)}")
+        logger.error(f"No se pudo enviar el email a {user.email}: {str(e)}")
         raise HTTPException(
-            status_code = status.HTTP_400_BAD_REQUEST, 
-            detail = f"Error al crear el usuario: {str(e)}"
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="No se pudo enviar el email de verificación. Intente nuevamente."
         )
     
+    try:
+        db.add(new_user)
+        db.commit()
+        db.refresh(new_user)
+        logger.info(f"Usuario {new_user.email} registrado exitosamente.")
+        return new_user
+
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Error al guardar el usuario {user.email} en la base: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Error al guardar el usuario en la base de datos."
+        )
 
     
 @router.get("/activar/", response_class=JSONResponse)
