@@ -4,7 +4,6 @@ import os
 from email.mime.multipart import MIMEMultipart  
 from email.mime.text import MIMEText
 import logging
-import secrets
 
 
 load_dotenv()
@@ -19,11 +18,6 @@ SMTP_PORT = int(os.getenv("SMTP_PORT"))
 SMTP_USER = os.getenv("SMTP_USER")
 SMTP_PASSWORD = os.getenv("SMTP_PASSWORD")
 PORT = os.getenv("PORT")
-
-
-def generar_otp() -> str:
-    otp_code = str(secrets.randbelow(900000) + 100000)
-    return otp_code
 
 
 async def enviar_email_otp(email: str, otp_code: str):

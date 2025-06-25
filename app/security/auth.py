@@ -239,15 +239,24 @@ async def login(form_data: OAuth2EmailRequestForm = Depends(), db: Session = Dep
 
     if user.two_factor_enabled or user.role == Role.ADMIN:    
         otp_service = OTPService(db) 
-        otp_code = otp_service.generate_otp(user.email)
+        otp_code, expiration, user_id = otp_service.create_otp_code(user.email)
         try:
             await enviar_email_otp(user.email, otp_code)
         except RuntimeError as e:
             logger.error(f"Error al enviar OTP a {user.email}: {str(e)}")
             raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="No se pudo enviar el código OTP. Intente nuevamente más tarde."
-    )
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="No se pudo enviar el código OTP. Intente nuevamente más tarde."
+            )
+
+        try:
+            otp_service.save_otp(user_id, otp_code, expiration)
+        except Exception as e:
+            logger.error(f"No se pudo guardar el OTP en la base: {str(e)}")
+            raise HTTPException(
+        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        detail="Error interno guardando el código OTP"
+        )
 
         user.last_login = datetime.now()
         db.commit()
