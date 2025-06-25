@@ -43,7 +43,8 @@ async def enviar_email_otp(email: str, otp_code: str):
 
         mensaje.attach(MIMEText(cuerpo, "html"))
 
-        with smtplib.SMTP_SSL(SMTP_SERVER, SMTP_PORT) as server:
+        logger.info("Conectando con el servidor SMTP...")
+        with smtplib.SMTP_SSL(SMTP_SERVER, SMTP_PORT, timeout=10) as server:
             logger.info("Conectando con el servidor SMTP...")
             server.login(SMTP_USER, SMTP_PASSWORD)
             logger.info("Autenticación SMTP exitosa.")
@@ -53,5 +54,7 @@ async def enviar_email_otp(email: str, otp_code: str):
 
     except smtplib.SMTPException as e:
         logger.error(f"Error enviando correo a {email}: {e}")
+        raise RuntimeError(f"No se pudo enviar el email OTP a {email}") from e
     except Exception as e:
         logger.error(f"Error inesperado enviando correo a {email}: {e}")
+        raise RuntimeError(f"Fallo inesperado al enviar el email OTP a {email}") from e

@@ -240,7 +240,14 @@ async def login(form_data: OAuth2EmailRequestForm = Depends(), db: Session = Dep
     if user.two_factor_enabled or user.role == Role.ADMIN:    
         otp_service = OTPService(db) 
         otp_code = otp_service.generate_otp(user.email)
-        await enviar_email_otp(user.email, otp_code)
+        try:
+            await enviar_email_otp(user.email, otp_code)
+        except RuntimeError as e:
+            logger.error(f"Error al enviar OTP a {user.email}: {str(e)}")
+            raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="No se pudo enviar el código OTP. Intente nuevamente más tarde."
+    )
 
         user.last_login = datetime.now()
         db.commit()
@@ -248,17 +255,16 @@ async def login(form_data: OAuth2EmailRequestForm = Depends(), db: Session = Dep
 
         logger.info(f"OTP enviado para el usuario {form_data.email}")    
         return {"detail": "OTP enviado a tu correo. Ingresa el código para completar el login."}
-    else:
-        access_token = create_access_token(
-            email = user.email, 
-            otp_verified = True, 
-            role = Role(user.role) 
-        )
-        logger.info(f"Login exitoso para el usuario {user.email}.") 
-        logger.info(f" Para su seguridad, recuerde activar su doble factor de autenticacion")   
-        return {"access_token": access_token, "token_type": "bearer"}
     
-
+    access_token = create_access_token(
+        email = user.email, 
+        otp_verified = True, 
+        role = Role(user.role) 
+    )
+    logger.info(f"Login exitoso para el usuario {user.email}.") 
+    logger.info(f" Para su seguridad, recuerde activar su doble factor de autenticacion")   
+    return {"access_token": access_token, "token_type": "bearer"}
+    
 
 
 @router.post("/verify_otp/")
