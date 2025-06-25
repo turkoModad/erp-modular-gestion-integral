@@ -6,7 +6,7 @@ from app.db.database import get_db
 from app.db.models.models import Usuario, FailedLoginAttempt
 from app.security.hashing import verify_password, hash_password
 from app.security.jwt import create_access_token
-from app.services.email_service import enviar_email_activacion
+from app.services.email_service_activation import enviar_email_activacion
 from app.services.hash_activacion_email import crear_token, verificar_token
 from app.services.otp_service import OTPService
 from app.services.email_otp import enviar_email_otp
