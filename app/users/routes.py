@@ -1,12 +1,18 @@
 from fastapi import APIRouter, HTTPException, Depends, status
+from pydantic import EmailStr
+from datetime import datetime
 from sqlalchemy.orm import Session
 from app.db.database import get_db
 from app.users.schemas import UsuarioUpdatePassword, UsuarioUpdate
 from app.security.schemas import UsuarioOut
-from app.db.models.models import Usuario
+from app.db.models.models import Usuario, OTP
 from app.security.hashing import verify_password, hash_password
 from app.security.jwt import get_current_verified_user
+from app.services.otp_service import OTPService
+from app.services.schemas import OTPRequest
+from app.services.email_otp import enviar_email_otp
 import logging
+
 
 
 logging.basicConfig(level=logging.INFO)
@@ -67,7 +73,7 @@ async def update_password(
     if not verify_password(password_data.current_password, current_user.password_hash):
         logger.warning(f"Contraseña incorrecta para {current_user.email}")
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
+            status_code = status.HTTP_400_BAD_REQUEST,
             detail="La contraseña actual es incorrecta"
         )
 
@@ -78,3 +84,59 @@ async def update_password(
     logger.info(f"Contraseña actualizada exitosamente para {current_user.email}")
 
     return {"message": "Contraseña actualizada exitosamente"}
+
+
+@router.post("/users/recuperar-acceso/")
+async def recuperar_acceso(email: EmailStr, db: Session = Depends(get_db)):
+    try:
+        user = db.query(Usuario).filter(Usuario.email == email).first()
+        if not user:
+            raise HTTPException(
+                status_code = status.HTTP_404_NOT_FOUND, 
+                detail = "Usuario no encontrado"
+                )
+
+        otp_service = OTPService(db)
+        otp_code, expiration, user_id = otp_service.create_otp_code(email)
+        await enviar_email_otp(user.email, otp_code)
+        otp_service.save_otp(user_id, otp_code, expiration)
+        return {"detail": "Se envió un código OTP al correo"}
+
+    except HTTPException as http_exc:
+        raise http_exc
+
+    except Exception as e:
+        logger.error(f"Error durante el proceso de recuperación: {str(e)}")
+        raise HTTPException(
+            status_code = status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="No se pudo completar el proceso. Intente nuevamente."
+        )
+    
+
+@router.post("/users/recuperar_con_OTP/")
+async def recuperar_con_OTP(data: OTPRequest, db: Session = Depends(get_db)):
+    
+    user = db.query(Usuario).filter(Usuario.email == data.email).first()
+    if not user:
+        raise HTTPException(
+            status_code = status.HTTP_404_NOT_FOUND, 
+            detail="Usuario no encontrado"
+            )
+    otp = db.query(OTP).filter(OTP.code == data.otp_code).first()
+    if not otp:
+        raise HTTPException(
+            status_code = status.HTTP_400_BAD_REQUEST, 
+            detail="Codigo OTP incorrecto"
+            )
+    
+    if otp.is_used or otp.expiration < datetime.now():
+        raise HTTPException(
+            status_code = status.HTTP_400_BAD_REQUEST,
+            detail = "Codigo OTP expirado"
+        )
+    
+    otp.is_used = True
+    db.delete(otp)
+    db.commit()
+    return {"Detail":"Codigo OTP verificado correctamente"}
+

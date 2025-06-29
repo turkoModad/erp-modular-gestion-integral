@@ -30,6 +30,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(lifespan=lifespan)
 
+
 create_limiter(app)
 
 app.include_router(auth.router, tags=["Auth"])
