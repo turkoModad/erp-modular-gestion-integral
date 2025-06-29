@@ -122,21 +122,12 @@ async def recuperar_con_OTP(data: OTPRequest, db: Session = Depends(get_db)):
             status_code = status.HTTP_404_NOT_FOUND, 
             detail="Usuario no encontrado"
             )
-    otp = db.query(OTP).filter(OTP.code == data.otp_code).first()
-    if not otp:
-        raise HTTPException(
-            status_code = status.HTTP_400_BAD_REQUEST, 
-            detail="Codigo OTP incorrecto"
-            )
     
-    if otp.is_used or otp.expiration < datetime.now():
+    otp_service = OTPService(db)
+    if not otp_service.verify_otp(data.email, data.otp_code):
         raise HTTPException(
-            status_code = status.HTTP_400_BAD_REQUEST,
-            detail = "Codigo OTP expirado"
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Código OTP inválido, expirado o ya utilizado"
         )
-    
-    otp.is_used = True
-    db.delete(otp)
-    db.commit()
-    return {"Detail":"Codigo OTP verificado correctamente"}
 
+    return {"detail": "Código OTP verificado correctamente"}
