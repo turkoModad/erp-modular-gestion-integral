@@ -1,6 +1,6 @@
 from fastapi import APIRouter, HTTPException, Depends, status
 from pydantic import EmailStr
-from datetime import datetime
+from datetime import datetime, timedelta
 from sqlalchemy.orm import Session
 from app.db.database import get_db
 from app.users.schemas import UsuarioUpdatePassword, UsuarioUpdate
@@ -11,6 +11,7 @@ from app.security.jwt import get_current_verified_user
 from app.services.otp_service import OTPService
 from app.services.schemas import OTPRequest
 from app.services.email_otp import enviar_email_otp
+from app.security.jwt import create_access_token, verify_access_token
 import logging
 
 
@@ -129,5 +130,23 @@ async def recuperar_con_OTP(data: OTPRequest, db: Session = Depends(get_db)):
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Código OTP inválido, expirado o ya utilizado"
         )
-
+    
+    reset_token = create_access_token(
+    email=user.email,
+    role=user.role,
+    expires_delta = timedelta(minutes=10),
+    extra_data={"token_type": "password_reset"}
+    )
+    
     return {"detail": "Código OTP verificado correctamente"}
+
+
+@router.get("/users/cambiar_contraseña/")
+def mostrar_formulario_cambio(token: str):
+    try:
+        payload = verify_access_token(token)
+        if payload.get("token_type") != "password_reset":
+            raise HTTPException(status_code=403, detail="Token inválido")
+        return {"detail": "Token válido. Ya podés enviar la nueva contraseña.", "email": payload["email"]}
+    except Exception:
+        raise HTTPException(status_code=403, detail="Token inválido o expirado")

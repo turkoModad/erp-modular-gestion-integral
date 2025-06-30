@@ -16,24 +16,19 @@ SMTP_SERVER = os.getenv("SMTP_SERVER")
 SMTP_PORT = os.getenv("SMTP_PORT")
 SMTP_USER = os.getenv("SMTP_USER")
 SMTP_PASSWORD = os.getenv("SMTP_PASSWORD")
-PORT = os.getenv("PORT")
 
 
-def enviar_email_activacion(email: str, token: str, nombre: str):
+def enviar_email_activacion(email: str, asunto: str, cuerpo: str):
     logger.info(f"Preparando correo de activación para {email}")
     
     try:
         mensaje = MIMEMultipart()
         mensaje["From"] = SMTP_USER
         mensaje["To"] = email
-        mensaje["Subject"] = f"{nombre}, activa tu cuenta en CodePyHub" 
+        mensaje["Subject"] = asunto
 
-        cuerpo = f"""
-        <h1>¡Bienvenido {nombre}!</h1>
-        <p>Haz clic en el siguiente enlace para activar tu cuenta:</p>
-        <a href="http://localhost:{PORT}/activar/?email={email}&token={token}">Activar en Local</a>
-        """
-        logger.info(f"Mensaje de activacion: {cuerpo}")        
+        logger.info(f"Mensaje de activacion: {cuerpo}") 
+
         mensaje.attach(MIMEText(cuerpo, "html"))
         logger.info("Conectando con el servidor SMTP...")
         
@@ -42,7 +37,7 @@ def enviar_email_activacion(email: str, token: str, nombre: str):
             logger.info("Autenticación SMTP exitosa.") 
             
             server.sendmail(SMTP_USER, email, mensaje.as_string())
-            logger.info(f"Correo de activación enviado a {email}")
+            logger.info(f"Correo enviado a {email}")
     
     except smtplib.SMTPException as e:
         logger.error(f"Error enviando correo a {email}: {e}")

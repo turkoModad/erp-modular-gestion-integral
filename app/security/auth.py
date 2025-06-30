@@ -16,8 +16,10 @@ from app.security.dependencies import OAuth2EmailRequestForm
 from app.enums import AccountStatus, Role
 from datetime import datetime, timedelta
 import logging
+import os
 from slowapi import Limiter
 from slowapi.util import get_remote_address
+from dotenv import load_dotenv
 
 
 logging.basicConfig(level=logging.INFO)
@@ -36,6 +38,10 @@ def get_limiter(request: Request):
 
 
 limiter = Limiter(key_func=get_remote_address)
+
+load_dotenv()
+
+PORT = os.getenv("PORT")
 
 
 @router.post("/registro/", response_model=UsuarioOut)
@@ -69,11 +75,16 @@ def register(user: UsuarioCreate, db: Session = Depends(get_db)):
     )
 
     try:
-        enviar_email_activacion(
-            email = new_user.email,
-            token = token,
-            nombre = f"{new_user.first_name} {new_user.last_name}"
-        )
+        nombre = user.first_name
+        asunto = f"{nombre}, activa tu cuenta en CodePyHub"
+        cuerpo = f"""
+        <h1>¡Bienvenido {nombre}!</h1>
+        <p>Haz clic en el siguiente enlace para activar tu cuenta:</p>
+        <a href="http://localhost:{PORT}/activar/?email={user.email}&token={token}">Activar cuenta</a>
+        """
+
+        enviar_email_activacion(email = user.email, asunto = asunto, cuerpo = cuerpo)
+
     
     except Exception as e:
         logger.error(f"No se pudo enviar el email a {user.email}: {str(e)}")
