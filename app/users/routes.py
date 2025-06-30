@@ -1,18 +1,18 @@
 from fastapi import APIRouter, HTTPException, Depends, status
 from pydantic import EmailStr
-from datetime import datetime, timedelta
+from datetime import timedelta
 from sqlalchemy.orm import Session
 from app.db.database import get_db
-from app.users.schemas import UsuarioUpdatePassword, UsuarioUpdate
+from app.users.schemas import UsuarioUpdate
 from app.security.schemas import UsuarioOut
-from app.db.models.models import Usuario, OTP
+from app.db.models.models import Usuario
 from app.security.hashing import verify_password, hash_password
 from app.security.jwt import get_current_verified_user
-from app.services.otp_service import OTPService
-from app.services.schemas import OTPRequest
-from app.services.email_otp import enviar_email_otp
 from app.security.jwt import create_access_token, verify_access_token
+from app.services.email_service_activation import enviar_email_activacion
 import logging
+from dotenv import load_dotenv
+import os
 
 
 
@@ -20,6 +20,11 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
+
+
+load_dotenv()
+
+PORT = os.getenv("PORT")
 
 
 @router.post("/users/consulta_datos/", response_model=UsuarioOut)
@@ -63,90 +68,91 @@ async def update_user_profile(
     return response_data
 
 
-@router.put("/users/cambio_password/")
-async def update_password(
-    password_data: UsuarioUpdatePassword,
-    db: Session = Depends(get_db),
-    current_user: Usuario = Depends(get_current_verified_user)
-):
-    logger.info(f"Intento de cambio de contraseña para {current_user.email}")
-
-    if not verify_password(password_data.current_password, current_user.password_hash):
-        logger.warning(f"Contraseña incorrecta para {current_user.email}")
-        raise HTTPException(
-            status_code = status.HTTP_400_BAD_REQUEST,
-            detail="La contraseña actual es incorrecta"
-        )
-
-    current_user.password_hash = hash_password(password_data.new_password)
-    db.commit()
-    db.refresh(current_user)
-
-    logger.info(f"Contraseña actualizada exitosamente para {current_user.email}")
-
-    return {"message": "Contraseña actualizada exitosamente"}
-
-
-@router.post("/users/recuperar-acceso/")
+@router.post("/users/recuperar_acceso/")
 async def recuperar_acceso(email: EmailStr, db: Session = Depends(get_db)):
-    try:
-        user = db.query(Usuario).filter(Usuario.email == email).first()
-        if not user:
-            raise HTTPException(
-                status_code = status.HTTP_404_NOT_FOUND, 
-                detail = "Usuario no encontrado"
-                )
-
-        otp_service = OTPService(db)
-        otp_code, expiration, user_id = otp_service.create_otp_code(email)
-        await enviar_email_otp(user.email, otp_code)
-        otp_service.save_otp(user_id, otp_code, expiration)
-        return {"detail": "Se envió un código OTP al correo"}
-
-    except HTTPException as http_exc:
-        raise http_exc
-
-    except Exception as e:
-        logger.error(f"Error durante el proceso de recuperación: {str(e)}")
-        raise HTTPException(
-            status_code = status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="No se pudo completar el proceso. Intente nuevamente."
-        )
-    
-
-@router.post("/users/recuperar_con_OTP/")
-async def recuperar_con_OTP(data: OTPRequest, db: Session = Depends(get_db)):
-    
-    user = db.query(Usuario).filter(Usuario.email == data.email).first()
+    user = db.query(Usuario).filter(Usuario.email == email).first()
     if not user:
         raise HTTPException(
-            status_code = status.HTTP_404_NOT_FOUND, 
+            status_code=status.HTTP_404_NOT_FOUND,
             detail="Usuario no encontrado"
-            )
-    
-    otp_service = OTPService(db)
-    if not otp_service.verify_otp(data.email, data.otp_code):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Código OTP inválido, expirado o ya utilizado"
         )
-    
+
     reset_token = create_access_token(
-    email=user.email,
-    role=user.role,
-    expires_delta = timedelta(minutes=10),
-    extra_data={"token_type": "password_reset"}
+        email=user.email,
+        role=user.role,
+        expires_delta=timedelta(minutes=10),
+        extra_data={"token_type": "password_reset"}
     )
-    
-    return {"detail": "Código OTP verificado correctamente"}
+
+    asunto = f"{user.first_name}, Cambia tu contraseña"
+    cuerpo = f"""
+    <h2>Solicitud de restablecimiento de contraseña</h2>
+    <p>Haz clic en el siguiente enlace para crear una nueva contraseña:</p>
+    <a href="http://localhost:{PORT}/users/reset-password-form?token={reset_token}">
+        Restablecer contraseña
+    </a>
+    """
+
+    try:
+        enviar_email_activacion(user.email, asunto, cuerpo)
+        return {"detail": "Se ha enviado un enlace para restablecer tu contraseña"}
+    except Exception as e:
+        logger.error(f"No se pudo enviar el email a {user.email}: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="No se pudo enviar el correo. Intenta más tarde."
+        )
 
 
-@router.get("/users/cambiar_contraseña/")
-def mostrar_formulario_cambio(token: str):
+
+from fastapi.responses import HTMLResponse
+from fastapi.templating import Jinja2Templates
+from fastapi import Request
+
+templates = Jinja2Templates(directory="frontend/templates")
+
+@router.get("/users/reset-password-form", response_class=HTMLResponse)
+def mostrar_formulario_cambio(token: str, request: Request):
     try:
         payload = verify_access_token(token)
         if payload.get("token_type") != "password_reset":
             raise HTTPException(status_code=403, detail="Token inválido")
-        return {"detail": "Token válido. Ya podés enviar la nueva contraseña.", "email": payload["email"]}
+        return templates.TemplateResponse("reset_password_form.html", {
+            "request": request,
+            "token": token
+        })
+    except Exception:
+        raise HTTPException(status_code=403, detail="Token inválido o expirado")
+
+
+from fastapi import Form
+
+@router.post("/users/reset-password/")
+def cambiar_password(
+    token: str = Form(...),
+    new_password: str = Form(...),
+    confirm_password: str = Form(...),
+    db: Session = Depends(get_db)
+):
+    if new_password != confirm_password:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Las contraseñas no coinciden"
+        )
+
+    try:
+        payload = verify_access_token(token)
+        if payload.get("token_type") != "password_reset":
+            raise HTTPException(status_code=403, detail="Token inválido")
+
+        email = payload.get("sub")
+        user = db.query(Usuario).filter(Usuario.email == email).first()
+        if not user:
+            raise HTTPException(status_code=404, detail="Usuario no encontrado")
+
+        user.password_hash = hash_password(new_password)
+        db.commit()
+
+        return {"detail": "Contraseña actualizada correctamente"}
     except Exception:
         raise HTTPException(status_code=403, detail="Token inválido o expirado")
