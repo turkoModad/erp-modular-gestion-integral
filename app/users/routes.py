@@ -74,8 +74,10 @@ async def update_user_profile(
 
 @router.post("/users/recuperar_acceso/")
 async def recuperar_acceso(email: EmailStr, db: Session = Depends(get_db)):
+    logger.info(f"Solicitud de recuperación para: {email}")
     user = db.query(Usuario).filter(Usuario.email == email).first()
     if not user:
+        logger.warning(f"Usuario no encontrado: {email}")
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Usuario no encontrado"
@@ -99,6 +101,7 @@ async def recuperar_acceso(email: EmailStr, db: Session = Depends(get_db)):
 
     try:
         enviar_email_activacion(user.email, asunto, cuerpo)
+        logger.info(f"Email de recuperación enviado a: {user.email}")
         return {"detail": "Se ha enviado un enlace para restablecer tu contraseña"}
     except Exception as e:
         logger.error(f"No se pudo enviar el email a {user.email}: {str(e)}")
@@ -111,16 +114,24 @@ async def recuperar_acceso(email: EmailStr, db: Session = Depends(get_db)):
 
 @router.get("/users/reset-password-form", response_class=HTMLResponse)
 def mostrar_formulario_cambio(token: str, request: Request):
+    logger.info("Solicitud de formulario con token recibido")
+
     try:
         payload = verify_access_token(token)
         if payload.get("token_type") != "password_reset":
+            logger.warning("Token inválido")
             raise HTTPException(status_code=403, detail="Token inválido")
+        logger.info("Token válido, mostrando formulario")
         return templates.TemplateResponse("reset_password_form.html", {
             "request": request,
             "token": token
         })
     except Exception:
-        raise HTTPException(status_code=403, detail="Token inválido o expirado")
+        logger.warning("Token inválido o expirado")
+        raise HTTPException(
+            status_code = status.HTTP_403_FORBIDDEN, 
+            detail="Token inválido o expirado"
+        )
 
 
 
@@ -131,25 +142,41 @@ def cambiar_password(
     confirm_password: str = Form(...),
     db: Session = Depends(get_db)
 ):
+    logger.info("Solicitud de cambio de contraseña vía token")
     if new_password != confirm_password:
+        logger.warning("Las contraseñas no coinciden")
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Las contraseñas no coinciden"
-        )
+            )
 
     try:
         payload = verify_access_token(token)
         if payload.get("token_type") != "password_reset":
-            raise HTTPException(status_code=403, detail="Token inválido")
+            logger.warning("Token inválido")
+            raise HTTPException(
+                status_code = status.HTTP_403_FORBIDDEN, 
+                detail="Token inválido"
+            )
 
         email = payload.get("sub")
         user = db.query(Usuario).filter(Usuario.email == email).first()
         if not user:
-            raise HTTPException(status_code=404, detail="Usuario no encontrado")
+            logger.warning(f"Usuario no encontrado: {email}")
+
+            raise HTTPException(
+                status_code = status.HTTP_404_NOT_FOUND, 
+                detail="Usuario no encontrado"
+                )
 
         user.password_hash = hash_password(new_password)
         db.commit()
 
+        logger.info(f"Contraseña actualizada para: {user.email}")
         return {"detail": "Contraseña actualizada correctamente"}
-    except Exception:
-        raise HTTPException(status_code=403, detail="Token inválido o expirado")
+    except Exception as e:
+        logger.error(f"Token inválido o expirado: {str(e)}")
+        raise HTTPException(
+            status_code = status.HTTP_403_FORBIDDEN, 
+            detail = "Token inválido o expirado"
+        )
