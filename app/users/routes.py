@@ -1,4 +1,6 @@
-from fastapi import APIRouter, HTTPException, Depends, status
+from fastapi import APIRouter, HTTPException, Depends, status, Form, Request
+from fastapi.responses import HTMLResponse
+from fastapi.templating import Jinja2Templates
 from pydantic import EmailStr
 from datetime import timedelta
 from sqlalchemy.orm import Session
@@ -20,6 +22,8 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
+
+templates = Jinja2Templates(directory="frontend/templates")
 
 
 load_dotenv()
@@ -105,12 +109,6 @@ async def recuperar_acceso(email: EmailStr, db: Session = Depends(get_db)):
 
 
 
-from fastapi.responses import HTMLResponse
-from fastapi.templating import Jinja2Templates
-from fastapi import Request
-
-templates = Jinja2Templates(directory="frontend/templates")
-
 @router.get("/users/reset-password-form", response_class=HTMLResponse)
 def mostrar_formulario_cambio(token: str, request: Request):
     try:
@@ -125,7 +123,6 @@ def mostrar_formulario_cambio(token: str, request: Request):
         raise HTTPException(status_code=403, detail="Token inválido o expirado")
 
 
-from fastapi import Form
 
 @router.post("/users/reset-password/")
 def cambiar_password(
