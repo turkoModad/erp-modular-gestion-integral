@@ -1,18 +1,17 @@
-import uvicorn
 from fastapi import FastAPI
-import logging
-import os
-import asyncio
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse, RedirectResponse
+from fastapi.openapi.utils import get_openapi
 from contextlib import asynccontextmanager
 from app.db.database import Base, engine, check_tables_exist
 from app.security import auth
 from app.security.limiter import create_limiter
 from app.users import routes as users
 from app.admin import routes as admin
-from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse, RedirectResponse
-from fastapi import FastAPI
-from fastapi.openapi.utils import get_openapi
+import uvicorn
+import logging
+import os
+import asyncio
 
 
 logging.basicConfig(level=logging.INFO)

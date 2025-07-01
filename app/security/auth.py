@@ -1,25 +1,26 @@
-from fastapi import APIRouter, HTTPException, Depends, status, Request
-from fastapi.responses import JSONResponse, Response
+from fastapi import APIRouter, HTTPException, Depends, status, Request, Form
+from fastapi.responses import JSONResponse, Response, HTMLResponse
 from fastapi.templating import Jinja2Templates
+from pydantic import EmailStr
+from datetime import datetime, timedelta
 from sqlalchemy.orm import Session
 from app.db.database import get_db
 from app.db.models.models import Usuario, FailedLoginAttempt
 from app.security.hashing import verify_password, hash_password
-from app.security.jwt import create_access_token
+from app.security.schemas import UsuarioCreate, UsuarioOut
+from app.security.dependencies import OAuth2EmailRequestForm
+from app.security.jwt import create_access_token, verify_access_token
 from app.services.email_service_activation import enviar_email_activacion
 from app.services.hash_activacion_email import crear_token, verificar_token
 from app.services.otp_service import OTPService
 from app.services.email_otp import enviar_email_otp
 from app.services.schemas import OTPRequest
-from app.security.schemas import UsuarioCreate, UsuarioOut
-from app.security.dependencies import OAuth2EmailRequestForm
 from app.enums import AccountStatus, Role
-from datetime import datetime, timedelta
-import logging
-import os
 from slowapi import Limiter
 from slowapi.util import get_remote_address
 from dotenv import load_dotenv
+import logging
+import os
 
 
 logging.basicConfig(level=logging.INFO)
@@ -28,7 +29,7 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
-templates = Jinja2Templates(directory="frontend/templates")
+templates = Jinja2Templates(directory="frontend/templates/auth")
 
 
 def get_limiter(request: Request):
@@ -316,3 +317,115 @@ async def verify_otp(
     )    
     logger.info(f"Login exitoso para el usuario {otp_data.email}.")    
     return {"access_token": access_token, "token_type": "bearer"}
+
+
+
+
+@router.post("/recuperar_acceso/")
+async def recuperar_acceso(email: EmailStr, db: Session = Depends(get_db)):
+    logger.info(f"Solicitud de recuperación para: {email}")
+    user = db.query(Usuario).filter(Usuario.email == email).first()
+    if not user:
+        logger.warning(f"Usuario no encontrado: {email}")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Usuario no encontrado"
+        )
+
+    reset_token = create_access_token(
+        email=user.email,
+        role=user.role,
+        expires_delta=timedelta(minutes=10),
+        extra_data={"token_type": "password_reset"}
+    )
+
+    asunto = f"{user.first_name}, Cambia tu contraseña"
+    cuerpo = f"""
+    <h2>Solicitud de restablecimiento de contraseña</h2>
+    <p>Haz clic en el siguiente enlace para crear una nueva contraseña:</p>
+    <a href="http://localhost:{PORT}/reset-password-form?token={reset_token}">
+        Restablecer contraseña
+    </a>
+    """
+
+    try:
+        enviar_email_activacion(user.email, asunto, cuerpo)
+        logger.info(f"Email de recuperación enviado a: {user.email}")
+        return {"detail": "Se ha enviado un enlace para restablecer tu contraseña"}
+    except Exception as e:
+        logger.error(f"No se pudo enviar el email a {user.email}: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="No se pudo enviar el correo. Intenta más tarde."
+        )
+
+
+
+@router.get("/reset-password-form", response_class=HTMLResponse)
+def mostrar_formulario_cambio(token: str, request: Request):
+    logger.info("Solicitud de formulario con token recibido")
+
+    try:
+        payload = verify_access_token(token)
+        if payload.get("token_type") != "password_reset":
+            logger.warning("Token inválido")
+            raise HTTPException(status_code=403, detail="Token inválido")
+        logger.info("Token válido, mostrando formulario")
+        return templates.TemplateResponse("reset_password_form.html", {
+            "request": request,
+            "token": token
+        })
+    except Exception:
+        logger.warning("Token inválido o expirado")
+        raise HTTPException(
+            status_code = status.HTTP_403_FORBIDDEN, 
+            detail="Token inválido o expirado"
+        )
+
+
+
+@router.post("/reset-password/")
+def cambiar_password(
+    token: str = Form(...),
+    new_password: str = Form(...),
+    confirm_password: str = Form(...),
+    db: Session = Depends(get_db)
+):
+    logger.info("Solicitud de cambio de contraseña vía token")
+    if new_password != confirm_password:
+        logger.warning("Las contraseñas no coinciden")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Las contraseñas no coinciden"
+            )
+
+    try:
+        payload = verify_access_token(token)
+        if payload.get("token_type") != "password_reset":
+            logger.warning("Token inválido")
+            raise HTTPException(
+                status_code = status.HTTP_403_FORBIDDEN, 
+                detail="Token inválido"
+            )
+
+        email = payload.get("sub")
+        user = db.query(Usuario).filter(Usuario.email == email).first()
+        if not user:
+            logger.warning(f"Usuario no encontrado: {email}")
+
+            raise HTTPException(
+                status_code = status.HTTP_404_NOT_FOUND, 
+                detail="Usuario no encontrado"
+                )
+
+        user.password_hash = hash_password(new_password)
+        db.commit()
+
+        logger.info(f"Contraseña actualizada para: {user.email}")
+        return {"detail": "Contraseña actualizada correctamente"}
+    except Exception as e:
+        logger.error(f"Token inválido o expirado: {str(e)}")
+        raise HTTPException(
+            status_code = status.HTTP_403_FORBIDDEN, 
+            detail = "Token inválido o expirado"
+        )
