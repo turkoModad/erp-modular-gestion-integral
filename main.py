@@ -1,6 +1,7 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse, RedirectResponse
+from fastapi.responses import FileResponse, HTMLResponse 
+from fastapi.templating import Jinja2Templates
 from fastapi.openapi.utils import get_openapi
 from contextlib import asynccontextmanager
 from app.db.database import Base, engine, check_tables_exist
@@ -37,6 +38,7 @@ app.include_router(users.router, tags=["Users"])
 app.include_router(admin.router, tags=["Admin"])
 
 
+templates = Jinja2Templates(directory="frontend/templates")
 app.mount("/static/", StaticFiles(directory="frontend/static/"), name="static")
 
 
@@ -80,9 +82,10 @@ async def initialize_database():
 
 
 
-@app.get("/")
-async def root():
-    return RedirectResponse(url="/docs")
+@app.get("/", response_class=HTMLResponse)
+def home(request: Request):
+    return templates.TemplateResponse("home/index.html", {"request": request})
+
 
 
 @app.get("/favicon.ico/")

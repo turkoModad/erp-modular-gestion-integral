@@ -1,0 +1,45 @@
+{% extends "includes/base.html" %}
+
+{% block title %}Bienvenido a CodePyHub{% endblock %}
+
+{% block content %}
+
+<!-- Bienvenida -->
+<section class="container text-center my-5">
+  <h1 class="mb-3">Bienvenido a CodePyHub</h1>
+  <p class="lead">Tu sistema ERP personalizado. Gestioná, automatizá y hacé crecer tu negocio</p>
+  <div class="d-flex justify-content-center gap-3 mt-4">
+    <a href="/auth/registro" class="btn btn-outline-success">Registrarse</a>
+    <a href="/auth/login" class="btn btn-outline-primary">Iniciar Sesión</a>
+  </div>
+</section>
+
+<!-- Carrusel -->
+<div id="carouselExampleIndicators" class="carousel slide my-4 container" data-bs-ride="carousel">
+  <div class="carousel-inner">
+    <div class="carousel-item active">
+      <img src="/static/images/banner1.jpg" class="d-block w-100" alt="Promo 1">
+    </div>
+    <div class="carousel-item">
+      <img src="/static/images/banner2.jpg" class="d-block w-100" alt="Promo 2">
+    </div>
+    <div class="carousel-item">
+      <img src="/static/images/banner3.jpg" class="d-block w-100" alt="Promo 3">
+    </div>
+  </div>
+  <button class="carousel-control-prev" type="button" data-bs-target="#carouselExampleIndicators" data-bs-slide="prev">
+    <span class="carousel-control-prev-icon"></span>
+  </button>
+  <button class="carousel-control-next" type="button" data-bs-target="#carouselExampleIndicators" data-bs-slide="next">
+    <span class="carousel-control-next-icon"></span>
+  </button>
+</div>
+
+<!-- Contacto -->
+<section class="container text-center my-5">
+  <h2>¿Querés dejarnos un mensaje?</h2>
+  <p>Puedes contactarnos por dudas, soporte, reclamos o simplemente dejar una felicitación.</p>
+  <a href="/contacto" class="btn btn-warning">Enviar Mensaje</a>
+</section>
+
+{% endblock %}

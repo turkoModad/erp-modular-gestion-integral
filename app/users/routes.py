@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, Depends, status, Form, Request
+from fastapi import APIRouter, HTTPException, Depends, status
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 from app.db.database import get_db
@@ -6,8 +6,8 @@ from app.db.models.models import Usuario
 from app.users.schemas import UsuarioUpdate
 from app.security.schemas import UsuarioOut
 from app.security.jwt import get_current_verified_user
-import logging
 from dotenv import load_dotenv
+import logging
 import os
 
 
