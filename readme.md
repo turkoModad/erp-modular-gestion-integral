@@ -96,7 +96,7 @@ El sistema soporta múltiples niveles de acceso:
 **José Aníbal Modad** – Desarrollador backend autodidacta
 
 - GitHub: [@turkomodad](https://github.com/turkomodad)
-- LinkedIn: [jose-anibal-modad](https://www.linkedin.com/in/jose-anibal-modad)
+- LinkedIn: [jose-anibal-modad](https://www.linkedin.com/in/jos%C3%A9-modad-9070a8357/)
 
 ---
 
