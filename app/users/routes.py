@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, Depends, status
+from fastapi import APIRouter, HTTPException, Depends, status, Request
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 from app.db.database import get_db
@@ -9,6 +9,7 @@ from app.security.jwt import get_current_verified_user
 from dotenv import load_dotenv
 import logging
 import os
+from fastapi.responses import HTMLResponse
 
 
 
@@ -17,12 +18,19 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
-templates = Jinja2Templates(directory="frontend/templates/users")
+templates = Jinja2Templates(directory="frontend/templates")
 
 
 load_dotenv()
 
 PORT = os.getenv("PORT")
+
+
+
+@router.get("/users/dashboard/", response_class=HTMLResponse)
+async def dashboard(request: Request):
+        return templates.TemplateResponse("/users/dashboard.html", {"request": request}) 
+    
 
 
 @router.post("/users/consulta_datos/", response_model=UsuarioOut)

@@ -328,7 +328,8 @@ async def login(form_data: OAuth2EmailRequestForm = Depends(), db: Session = Dep
     )
     logger.info(f"Login exitoso para el usuario {user.email}.") 
     logger.info(f" Para su seguridad, recuerde activar su doble factor de autenticacion")   
-    return {"access_token": access_token, "token_type": "bearer"}
+    #return {"access_token": access_token, "token_type": "bearer"}
+    return RedirectResponse(url="/users/dashboard", status_code=303)
     
 
 
