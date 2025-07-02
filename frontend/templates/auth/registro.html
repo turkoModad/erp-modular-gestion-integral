@@ -1,0 +1,118 @@
+{% extends "includes/base.html" %}
+
+{% block title %}Registro - CodePyHub{% endblock %}
+
+{% if error %}
+<div class="alert alert-danger">
+    {{ error }}
+</div>
+{% endif %}
+
+{% block content %}
+<div class="container mt-5">
+  <h2 class="text-center mb-4">Crear una cuenta</h2>
+  <form method="post" action="/registro/">
+    <div class="row">
+      <div class="col-md-6 mb-3">
+        <label for="first_name" class="form-label">Nombre</label>
+        <input type="text" class="form-control" id="first_name" name="first_name" required>
+      </div>
+      <div class="col-md-6 mb-3">
+        <label for="last_name" class="form-label">Apellido</label>
+        <input type="text" class="form-control" id="last_name" name="last_name" required>
+      </div>
+    </div>
+
+    <div class="mb-3">
+      <label for="email" class="form-label">Correo electrónico</label>
+      <input type="email" class="form-control" id="email" name="email" required>
+    </div>
+
+    <div class="mb-3">
+      <label for="password" class="form-label">Contraseña</label>
+      <div class="input-group">
+        <input type="password" class="form-control" id="password" name="password" required minlength="8">
+        <button class="btn btn-outline-secondary" type="button" onclick="togglePassword('password')">
+          <i class="bi bi-eye" id="icon-password"></i>
+        </button>
+      </div>
+    </div>
+
+    <div class="mb-3">
+      <label for="repeat_password" class="form-label">Repetir contraseña</label>
+      <div class="input-group">
+        <input type="password" class="form-control" id="repeat_password" name="repeat_password" required>
+        <button class="btn btn-outline-secondary" type="button" onclick="togglePassword('repeat_password')">
+          <i class="bi bi-eye" id="icon-repeat_password"></i>
+        </button>
+      </div>
+    </div>
+
+    <div id="password-error" class="text-danger mt-1" style="display: none;">
+      Las contraseñas no coinciden.
+    </div>
+    
+    <div class="mb-3">
+      <label for="phone_number" class="form-label">Teléfono</label>
+      <input type="tel" class="form-control" id="phone_number" name="phone_number">
+    </div>
+
+    <div class="mb-3">
+      <label for="shipping_address" class="form-label">Dirección de envío</label>
+      <input type="text" class="form-control" id="shipping_address" name="shipping_address">
+    </div>
+
+    <div class="row">
+      <div class="col-md-4 mb-3">
+        <label for="shipping_city" class="form-label">Ciudad</label>
+        <input type="text" class="form-control" id="shipping_city" name="shipping_city">
+      </div>
+      <div class="col-md-4 mb-3">
+        <label for="shipping_country" class="form-label">País</label>
+        <input type="text" class="form-control" id="shipping_country" name="shipping_country">
+      </div>
+      <div class="col-md-4 mb-3">
+        <label for="shipping_zip_code" class="form-label">Código Postal</label>
+        <input type="text" class="form-control" id="shipping_zip_code" name="shipping_zip_code">
+      </div>
+    </div>
+
+    <div class="d-grid">
+      <button type="submit" class="btn btn-primary">Registrarse</button>
+    </div>
+  </form>
+</div>
+
+<script>
+function togglePassword(fieldId) {
+  const input = document.getElementById(fieldId);
+  const icon = document.getElementById('icon-' + fieldId);
+  if (input.type === "password") {
+    input.type = "text";
+    icon.classList.remove("bi-eye");
+    icon.classList.add("bi-eye-slash");
+  } else {
+    input.type = "password";
+    icon.classList.remove("bi-eye-slash");
+    icon.classList.add("bi-eye");
+  }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  const form = document.querySelector("form");
+  form.addEventListener("submit", function (e) {
+    const password = document.getElementById("password").value;
+    const repeat = document.getElementById("repeat_password").value;
+    const errorDiv = document.getElementById("password-error");
+
+    if (password !== repeat) {
+      e.preventDefault(); // bloquea el envío
+      errorDiv.style.display = "block";
+    } else {
+      errorDiv.style.display = "none";
+    }
+  });
+});
+</script>
+
+{% endblock %}

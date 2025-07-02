@@ -1,7 +1,7 @@
 from fastapi import APIRouter, HTTPException, Depends, status, Request, Form
-from fastapi.responses import JSONResponse, Response, HTMLResponse
+from fastapi.responses import JSONResponse, Response, HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
-from pydantic import EmailStr
+from pydantic import EmailStr, ValidationError
 from datetime import datetime, timedelta
 from sqlalchemy.orm import Session
 from app.db.database import get_db
@@ -29,7 +29,7 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
-templates = Jinja2Templates(directory="frontend/templates/auth")
+templates = Jinja2Templates(directory="frontend/templates")
 
 
 def get_limiter(request: Request):
@@ -44,9 +44,50 @@ load_dotenv()
 
 PORT = os.getenv("PORT")
 
+@router.get("/registro/", response_class=HTMLResponse)
+def show_register_page(request: Request):
+    return templates.TemplateResponse("/auth/registro.html", {"request": request})
 
-@router.post("/registro/", response_model=UsuarioOut)
-def register(user: UsuarioCreate, db: Session = Depends(get_db)):
+
+
+@router.post("/registro/")
+async def register(request: Request, db: Session = Depends(get_db)):
+    # Obtener datos del formulario
+    form_data = await request.form()
+    form_dict = dict(form_data)
+    
+    logger.info(f"Datos recibidos del formulario: {form_dict}")
+
+    # Convertir campos especiales
+    try:
+        fecha = form_dict.get('date_of_birth', '').strip()
+        if fecha:
+            form_dict['date_of_birth'] = datetime.strptime(fecha, "%Y-%m-%d").date()
+        else:
+            form_dict['date_of_birth'] = None
+            
+        # Convertir campos booleanos
+        form_dict['two_factor_enabled'] = 'two_factor_enabled' in form_dict
+        #form_dict['is_email_verified'] = 'is_email_verified' in form_dict
+
+    except ValueError as e:
+        logger.error(f"Error en conversión de datos: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"Error en formato de datos: {str(e)}"
+        )
+
+    # Validar con modelo Pydantic
+    try:
+        user = UsuarioCreate(**form_dict)
+    except ValidationError as e:
+        logger.error(f"Error de validación: {e.errors()}")
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=e.errors()
+        )
+
+    # Continuar con el proceso de registro
     logger.info(f"Intento de registro para el usuario: {user.email}")
     db_user = db.query(Usuario).filter(Usuario.email == user.email).first()
     if db_user:
@@ -86,13 +127,13 @@ def register(user: UsuarioCreate, db: Session = Depends(get_db)):
 
         enviar_email_activacion(email = user.email, asunto = asunto, cuerpo = cuerpo)
 
-    
     except Exception as e:
         logger.error(f"No se pudo enviar el email a {user.email}: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="No se pudo enviar el email de verificación. Intente nuevamente."
         )
+    
     
     try:
         db.add(new_user)
@@ -108,12 +149,13 @@ def register(user: UsuarioCreate, db: Session = Depends(get_db)):
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Error al guardar el usuario en la base de datos."
         )
-
     
-@router.get("/activar/", response_class=JSONResponse)
-def mostrar_form_activacion(request: Request, email: str, token: str, response: Response):
+
+
+@router.get("/activar/", response_class=HTMLResponse)
+def mostrar_form_activacion(request: Request, email: str, token: str):
     logger.info(f"Generando formulario de activación para el email: {email}")    
-    response = templates.TemplateResponse("activar.html", {"request": request})
+    response = templates.TemplateResponse("/auth/activar.html", {"request": request})
     response.set_cookie(
         key="activation_data",
         value=f"{email}:{token}",
@@ -127,34 +169,30 @@ def mostrar_form_activacion(request: Request, email: str, token: str, response: 
 
 
 
+
 @router.post("/activate/")
 def activate_email(request: Request, response: Response, db: Session = Depends(get_db)):
-    # Leer datos desde cookie
     activation_data = request.cookies.get("activation_data")
     
     if not activation_data:
-        logger.warning("Intento de activación sin datos de cookie")
-        raise HTTPException(400, "Datos de activación no encontrados")
+        return RedirectResponse(url="/registro", status_code=303)
     
-    email, token = activation_data.split(":", 1)
-    
-    logger.info(f"Recibido email: {email} y token para activación.")
+    try:
+        email, token = activation_data.split(":", 1)
+    except ValueError:
+        return RedirectResponse(url="/registro", status_code=303)
     
     if not email or not token:
-        logger.warning("Faltan datos de activación")
-        raise HTTPException(status_code=400, detail="Faltan datos de activación")
+        return RedirectResponse(url="/registro", status_code=303)
     
     usuario = db.query(Usuario).filter(Usuario.email == email).first()
     if not usuario:
-        logger.warning(f"El usuario con email {email} no existe en la base de datos.")
-        raise HTTPException(status_code=404, detail="Usuario no encontrado")
+        return RedirectResponse(url="/registro", status_code=303)
 
     try:
         verificar_token(token, usuario)
-        logger.info(f"Token de activación verificado para el usuario: {email}")
-    except ValueError as e:
-        logger.error(f"Error al verificar el token para el usuario {email}: {str(e)}")
-        raise HTTPException(status_code=400, detail=str(e))
+    except ValueError:
+        return RedirectResponse(url="/registro", status_code=303)
     
     if usuario.account_status == AccountStatus.pending:
         usuario.is_email_verified = True
@@ -165,12 +203,18 @@ def activate_email(request: Request, response: Response, db: Session = Depends(g
         db.refresh(usuario)
 
         response.delete_cookie("activation_data")
+        return RedirectResponse(url="/login", status_code=303)
+            
+    return RedirectResponse(url="/registro", status_code=303)
 
-        logger.info(f"Cuenta activada exitosamente para el usuario {email}")
-        return JSONResponse(content={"message": "Email activado exitosamente"})
     
-    logger.warning(f"El usuario {email} ya ha sido activado o no es válido para activación.")
-    raise HTTPException(status_code=400, detail="El usuario ya ha sido activado o no es válido")
+
+@router.get("/login", response_class=HTMLResponse)
+def mostrar_login(request: Request, cuenta_activada: bool = False):
+    return templates.TemplateResponse("/auth/login.html", {
+        "request": request,
+        "cuenta_activada": cuenta_activada
+    }) 
 
 
 

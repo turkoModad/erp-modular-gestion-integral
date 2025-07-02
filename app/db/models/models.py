@@ -13,7 +13,7 @@ class Usuario(Base):
     password_hash = Column(String(255), nullable = False)
     first_name = Column(String(100), nullable = False)
     last_name = Column(String(100), nullable = False)
-    date_of_birth = Column(Date, nullable = False) 
+    date_of_birth = Column(Date, nullable = True) 
     phone_number = Column(String(20), nullable = True)       
     shipping_address = Column(String(255), nullable = True)
     shipping_city = Column(String(100), nullable = True)

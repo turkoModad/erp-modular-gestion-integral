@@ -2,24 +2,33 @@
 <html>
 <head>
     <title>Activando cuenta...</title>
-    <script>
+        <script>
         document.addEventListener('DOMContentLoaded', async () => {
             try {
                 const response = await fetch("/activate/", {
                     method: "POST",
-                    credentials: "include" 
+                    credentials: "include"
                 });
 
+                if (response.redirected) {
+                    window.location.href = response.url;
+                    return;
+                }
+
+                // Solo procesar JSON si no fue redirigido
                 const data = await response.json();
-                
+
                 if (!response.ok) throw new Error(data.detail || "Error desconocido");
-                window.location.href = "/docs";
+
+                window.location.href = "/login";
+
             } catch (error) {
                 console.error("Error de activación:", error);
                 document.getElementById("error-message").textContent = `Error: ${error.message}`;
             }
         });
-    </script>
+        </script>
+
 </head>
 <body>
     <p>Activando tu cuenta, por favor espera...</p>
