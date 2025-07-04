@@ -365,9 +365,14 @@ async def verify_otp(
 
 
 
+@router.get("/recuperar_acceso/", response_class=HTMLResponse)
+async def recuperar_acceso_get(request: Request):
+    return templates.TemplateResponse("auth/recuperar_acceso.html", {"request": request})
+
+
 
 @router.post("/recuperar_acceso/")
-async def recuperar_acceso(email: EmailStr, db: Session = Depends(get_db)):
+async def recuperar_acceso(email: EmailStr = Form(...), db: Session = Depends(get_db)):
     logger.info(f"Solicitud de recuperación para: {email}")
     user = db.query(Usuario).filter(Usuario.email == email).first()
     if not user:
@@ -416,7 +421,7 @@ def mostrar_formulario_cambio(token: str, request: Request):
             logger.warning("Token inválido")
             raise HTTPException(status_code=403, detail="Token inválido")
         logger.info("Token válido, mostrando formulario")
-        return templates.TemplateResponse("reset_password_form.html", {
+        return templates.TemplateResponse("auth/reset_password_form.html", {
             "request": request,
             "token": token
         })

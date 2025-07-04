@@ -1,15 +1,21 @@
 from datetime import datetime, timedelta, timezone
-from jose import jwt, JWTError
+from jose import jwt, JWTError, ExpiredSignatureError, JWTError
+from jose.exceptions import JWTClaimsError
 from dotenv import load_dotenv
-import os
 from fastapi.security import OAuth2PasswordBearer
 from fastapi import Depends, HTTPException, status
+from app.enums import Role
 from app.db.models.models import Usuario, AccountStatus
 from app.db.database import get_db
 from app.security.exceptions import TokenValidationError
 from typing import Optional, Dict, Any
 from sqlalchemy.orm import Session
-from app.enums import Role
+import os
+import logging
+
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 
 oauth2_scheme = OAuth2PasswordBearer(
@@ -64,28 +70,26 @@ def create_access_token(
 def verify_access_token(token: str) -> Dict[str, Any]:
     """
     Verifica y decodifica un token de acceso JWT.
-
-    Args:
-        token (str): El token JWT a verificar.
-
-    Returns:
-        Dict[str, Any]: El payload decodificado si el token es válido.
-
-    Raises:
-        TokenValidationError: Si el token es inválido o ha expirado.
     """
-    credentials_exception = TokenValidationError("Token inválido o expirado")
-
     try:
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])        
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         email: str = payload.get("sub")
         if not email:
-            raise credentials_exception
-        
-        return payload  
-    
-    except JWTError:
-        raise credentials_exception
+            logger.warning("El token no contiene un email válido")
+            raise TokenValidationError("Token sin email válido")
+        return payload
+
+    except ExpiredSignatureError:
+        logger.error("El token ha expirado")
+        raise TokenValidationError("Token expirado")
+
+    except JWTClaimsError as e:
+        logger.error(f"Error en los claims del token: {e}")
+        raise TokenValidationError("Claims inválidos")
+
+    except JWTError as e:
+        logger.error(f"Token inválido: {e}")
+        raise TokenValidationError("Token inválido")
 
 
 
