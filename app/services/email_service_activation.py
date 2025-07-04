@@ -24,6 +24,7 @@ configuration.api_key['api-key'] = os.getenv("BREVO_API_KEY")
 
 EMAIL_SENDER = os.getenv("EMAIL_SENDER")
 EMAIL_SENDER_NAME = os.getenv("EMAIL_SENDER_NAME")
+FRONTEND_URL = os.getenv("FRONTEND_URL")
 
 
 
