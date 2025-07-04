@@ -394,7 +394,7 @@ async def recuperar_acceso(email: EmailStr = Form(...), db: Session = Depends(ge
     cuerpo = f"""
     <h2>Solicitud de restablecimiento de contraseña</h2>
     <p>Haz clic en el siguiente enlace para crear una nueva contraseña:</p>
-    <a href="http://localhost:{PORT}/reset-password-form?token={reset_token}">
+    <a href="{FRONTEND_URL}/reset-password-form?token={reset_token}">
         Restablecer contraseña
     </a>
     """
