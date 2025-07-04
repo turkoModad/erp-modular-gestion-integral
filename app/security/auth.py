@@ -43,7 +43,7 @@ limiter = Limiter(key_func=get_remote_address)
 load_dotenv()
 
 PORT = os.getenv("PORT")
-FRONTEND_URL = os.getenv("FRONTEND_URL")
+FRONTEND_URL = os.getenv("FRONTEND_URL").rstrip("/")
 
 @router.get("/registro/", response_class=HTMLResponse)
 def show_register_page(request: Request):
