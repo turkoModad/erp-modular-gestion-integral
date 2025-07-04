@@ -56,7 +56,7 @@ async def register(request: Request, db: Session = Depends(get_db)):
     form_data = await request.form()
     form_dict = dict(form_data)
     
-    logger.info(f"Datos recibidos del formulario: {form_dict}")
+    logger.info(f"Datos recibidos del formulario para el usuario: {form_dict.get('email')}")
 
     # Convertir campos especiales
     try:
