@@ -472,7 +472,9 @@ def cambiar_password(
         db.commit()
 
         logger.info(f"Contraseña actualizada para: {user.email}")
-        return {"detail": "Contraseña actualizada correctamente"}
+        return RedirectResponse(url="/login", status_code=303)
+    
+        
     except Exception as e:
         logger.error(f"Token inválido o expirado: {str(e)}")
         raise HTTPException(
