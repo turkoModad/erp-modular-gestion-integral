@@ -43,6 +43,7 @@ limiter = Limiter(key_func=get_remote_address)
 load_dotenv()
 
 PORT = os.getenv("PORT")
+FRONTEND_URL = os.getenv("FRONTEND_URL")
 
 @router.get("/registro/", response_class=HTMLResponse)
 def show_register_page(request: Request):
@@ -122,7 +123,7 @@ async def register(request: Request, db: Session = Depends(get_db)):
         cuerpo = f"""
         <h1>¡Bienvenido {nombre}!</h1>
         <p>Haz clic en el siguiente enlace para activar tu cuenta:</p>
-        <a href="http://localhost:{PORT}/activar/?email={user.email}&token={token}">Activar cuenta</a>
+        <a href="{FRONTEND_URL}/activar/?email={user.email}&token={token}">Activar cuenta</a>
         """
 
         enviar_email_activacion(email = user.email, asunto = asunto, cuerpo = cuerpo)
