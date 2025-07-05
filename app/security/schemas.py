@@ -45,7 +45,7 @@ class UsuarioOut(BaseModel):
     first_name: str
     last_name: str
     phone_number: Optional[str] = None
-    date_of_birth: date
+    date_of_birth: Optional[date] = None
     shipping_address: Optional[str] = None
     shipping_city: Optional[str] = None
     shipping_country: Optional[str] = None

@@ -1,6 +1,133 @@
-{% block content %}
-  <h2>¡Bienvenido, <span id="username">usuario</span>!</h2>
-  <p class="lead">Gestioná tu cuenta, tus pedidos y más desde este panel.</p>
+{% extends "includes/base.html" %}
 
-  <div id="user-info" class="mt-4"></div>
+{% block title %}Dashboard{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+  <h3 class="mb-4">Panel de Usuario</h3>
+
+  <!-- Datos del usuario -->
+  <div id="user-info" class="border p-3 rounded bg-light mb-3"></div>
+
+  <!-- Botón para mostrar/ocultar formulario -->
+  <button id="btn-mostrar-form" class="btn btn-outline-primary mb-3">
+    Actualizar Datos
+  </button>
+
+  <!-- Formulario de actualización -->
+  <form id="update-form" class="d-none">
+    <div class="row">
+      <div class="col-md-6 mb-3">
+        <label for="first_name" class="form-label">Nombre</label>
+        <input type="text" class="form-control" id="first_name" name="first_name">
+      </div>
+      <div class="col-md-6 mb-3">
+        <label for="last_name" class="form-label">Apellido</label>
+        <input type="text" class="form-control" id="last_name" name="last_name">
+      </div>
+      <div class="col-md-6 mb-3">
+        <label for="phone_number" class="form-label">Teléfono</label>
+        <input type="text" class="form-control" id="phone_number" name="phone_number">
+      </div>
+      <div class="col-md-6 mb-3">
+        <label for="shipping_address" class="form-label">Dirección</label>
+        <input type="text" class="form-control" id="shipping_address" name="shipping_address">
+      </div>
+      <div class="col-md-6 mb-3">
+        <label for="shipping_city" class="form-label">Ciudad</label>
+        <input type="text" class="form-control" id="shipping_city" name="shipping_city">
+      </div>
+      <div class="col-md-6 mb-3">
+        <label for="shipping_country" class="form-label">País</label>
+        <input type="text" class="form-control" id="shipping_country" name="shipping_country">
+      </div>
+      <div class="col-md-6 mb-3">
+        <label for="shipping_zip_code" class="form-label">Código Postal</label>
+        <input type="text" class="form-control" id="shipping_zip_code" name="shipping_zip_code">
+      </div>
+    </div>
+
+    <button type="submit" class="btn btn-success">Guardar Cambios</button>
+  </form>
+</div>
+
+<script>
+const token = localStorage.getItem("access_token");
+
+function consultarDatos() {
+  fetch("/users/consulta_datos/", {
+    method: "POST",
+    headers: {
+      "Authorization": `Bearer ${token}`
+    }
+  })
+  .then(res => {
+    if (!res.ok) throw new Error("Error al consultar datos.");
+    return res.json();
+  })
+  .then(data => {
+    const infoHTML = `
+      <p><strong>Nombre:</strong> ${data.first_name}</p>
+      <p><strong>Apellido:</strong> ${data.last_name}</p>
+      <p><strong>Email:</strong> ${data.email}</p>
+      <p><strong>Teléfono:</strong> ${data.phone_number || "-"}</p>
+      <p><strong>Dirección:</strong> ${data.shipping_address || "-"}</p>
+      <p><strong>Ciudad:</strong> ${data.shipping_city || "-"}</p>
+      <p><strong>País:</strong> ${data.shipping_country || "-"}</p>
+      <p><strong>CP:</strong> ${data.shipping_zip_code || "-"}</p>
+    `;
+    document.getElementById("user-info").innerHTML = infoHTML;
+
+    // Prellenar el formulario
+    document.getElementById("first_name").value = data.first_name || "";
+    document.getElementById("last_name").value = data.last_name || "";
+    document.getElementById("phone_number").value = data.phone_number || "";
+    document.getElementById("shipping_address").value = data.shipping_address || "";
+    document.getElementById("shipping_city").value = data.shipping_city || "";
+    document.getElementById("shipping_country").value = data.shipping_country || "";
+    document.getElementById("shipping_zip_code").value = data.shipping_zip_code || "";
+  })
+  .catch(err => {
+    console.error(err);
+    alert("No se pudo obtener los datos del usuario.");
+  });
+}
+
+document.getElementById("btn-mostrar-form").addEventListener("click", () => {
+  const form = document.getElementById("update-form");
+  form.classList.toggle("d-none");
+});
+
+document.getElementById("update-form").addEventListener("submit", async function (e) {
+  e.preventDefault();
+
+  const formData = new FormData(this);
+  const body = {};
+
+  for (let [key, value] of formData.entries()) {
+    if (value.trim() !== "") body[key] = value;
+  }
+
+  const res = await fetch("/users/actualizar_datos/", {
+    method: "PUT",
+    headers: {
+      "Authorization": `Bearer ${token}`,
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify(body)
+  });
+
+  if (res.ok) {
+    alert("Datos actualizados correctamente.");
+    document.getElementById("update-form").classList.add("d-none");
+    consultarDatos();  // recargar datos
+  } else {
+    const error = await res.json();
+    alert("Error al actualizar: " + (error.detail || "Error desconocido."));
+  }
+});
+
+// Ejecutar al cargar
+document.addEventListener("DOMContentLoaded", consultarDatos);
+</script>
 {% endblock %}

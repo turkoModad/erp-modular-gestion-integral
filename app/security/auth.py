@@ -141,7 +141,7 @@ async def register(request: Request, db: Session = Depends(get_db)):
         db.commit()
         db.refresh(new_user)
         logger.info(f"Usuario {new_user.email} registrado exitosamente.")
-        return new_user
+        return RedirectResponse(url="/", status_code=303)
 
     except Exception as e:
         db.rollback()
@@ -328,9 +328,11 @@ async def login(form_data: OAuth2EmailRequestForm = Depends(), db: Session = Dep
         role = Role(user.role) 
     )
     logger.info(f"Login exitoso para el usuario {user.email}.") 
-    logger.info(f" Para su seguridad, recuerde activar su doble factor de autenticacion")   
-    #return {"access_token": access_token, "token_type": "bearer"}
-    return RedirectResponse(url="/users/dashboard", status_code=303)
+    logger.info(f" Para su seguridad, recuerde activar su doble factor de autenticacion")     
+    return JSONResponse(
+    content={"access_token": access_token, "token_type": "bearer"},
+    status_code=200
+    )
     
 
 
@@ -402,7 +404,8 @@ async def recuperar_acceso(email: EmailStr = Form(...), db: Session = Depends(ge
     try:
         enviar_email_activacion(user.email, asunto, cuerpo)
         logger.info(f"Email de recuperación enviado a: {user.email}")
-        return {"detail": "Se ha enviado un enlace para restablecer tu contraseña"}
+        return RedirectResponse(url="/", status_code=303)
+
     except Exception as e:
         logger.error(f"No se pudo enviar el email a {user.email}: {str(e)}")
         raise HTTPException(
