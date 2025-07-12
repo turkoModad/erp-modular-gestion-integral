@@ -16,3 +16,4 @@ script.py.mako
 test.db
 versions/
 frontend/static/images/
+erp/
